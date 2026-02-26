@@ -4,7 +4,7 @@
 
 project: SIG Maps V2
 current_epic: 2
-last_updated: 2026-02-26T17:00:00Z
+last_updated: 2026-02-26T17:15:00Z
 
 epics:
   1:
@@ -36,6 +36,9 @@ epics:
     stories:
       2-1-map-initialization:
         name: "Map Initialization"
+        status: done
+      2-2-layer-panel:
+        name: "Layer Panel"
         status: ready-for-dev
       2-2-layer-panel:
         name: "Layer Panel"
