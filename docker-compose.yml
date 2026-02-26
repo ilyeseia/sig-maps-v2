@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with PostGIS
+  postgres:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: sig-maps-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: grocery_admin
+      POSTGRES_PASSWORD: GroceryStrongPassword2024!
+      POSTGRES_DB: sig_maps_v2
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grocery_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for BullMQ (Export Jobs)
+  redis:
+    image: redis:7-alpine
+    container_name: sig-maps-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sig-maps-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://grocery_admin:GroceryStrongPassword2024!@postgres:5432/sig_maps_v2?schema=public
+      JWT_SECRET: your-secret-key-change-this-in-production-min-32-characters
+      JWT_ACCESS_EXPIRY: 24h
+      JWT_REFRESH_EXPIRY: 7d
+      PORT: 3001
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:3000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BCRYPT_COST: 12
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - exports_volume:/exports
+      - prisma_migrations:/app/prisma/migrations
+    command: sh -c "npm install && npx prisma generate && npx prisma migrate dev && npm run dev"
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sig-maps-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_MAP_TILE_URL: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  postgres_data:
+  exports_volume:
+  prisma_migrations:

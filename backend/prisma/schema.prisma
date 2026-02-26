@@ -1,0 +1,112 @@
+// Prisma Schema - SIG Maps V2
+// Database: PostgreSQL 15 + PostGIS 3.3
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum GeometryType {
+  POINT
+  LINE
+  POLYGON
+}
+
+enum ExportFormat {
+  GEOJSON
+  KML
+  SHAPEFILE
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String
+  passwordHash   String   @map("password_hash")
+  role           UserRole @default(VIEWER)
+  isActive       Boolean  @default(true) @map("is_active")
+  language       String   @default("ar") // "ar" or "fr"
+  createdAt      DateTime @default(now()) @map("created_at")
+  lastLoginAt    DateTime? @map("last_login_at")
+  resetToken     String?  @map("reset_token")
+  resetTokenExpiresAt DateTime? @map("reset_token_expires_at")
+
+  // Relations
+  layers      Layer[]     @relation("LayerCreator")
+  features    Feature[]   @relation("FeatureCreator")
+  exportJobs  ExportJob[] @relation("ExportJobCreator")
+
+  @@map("users")
+}
+
+model Layer {
+  id           String       @id @default(uuid())
+  nameAr       String       @map("name_ar")
+  nameFr       String       @map("name_fr")
+  geometryType GeometryType @map("geometry_type")
+  isVisible    Boolean      @default(true) @map("is_visible")
+  zIndex       Int          @default(0) @map("z_index")
+  style        Json?        // { color, opacity, lineWidth, etc. }
+  createdAt    DateTime     @default(now()) @map("created_at")
+  createdBy    String       @map("created_by")
+
+  // Relations
+  creator  User      @relation("LayerCreator", fields: [createdBy], references: [id])
+  features Feature[]
+
+  @@index([geometryType])
+  @@index([zIndex])
+  @@map("layers")
+}
+
+model Feature {
+  id          String   @id @default(uuid())
+  layerId     String   @map("layer_id")
+  geometry    Json     // PostGIS geometry as GeoJSON
+  attributes  Json?    // Custom key-value pairs
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String   @map("created_by")
+
+  // Relations
+  layer   Layer   @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  creator User    @relation("FeatureCreator", fields: [createdBy], references: [id])
+
+  @@index([layerId])
+  @@index([createdAt])
+  @@map("features")
+}
+
+model ExportJob {
+  id          String       @id @default(uuid())
+  format      ExportFormat
+  status      ExportStatus @default(PENDING)
+  layerIds    String[]     @map("layer_ids")
+  downloadUrl String?      @map("download_url")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  createdBy   String       @map("created_by")
+
+  // Relations
+  creator User @relation("ExportJobCreator", fields: [createdBy], references: [id])
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("export_jobs")
+}
