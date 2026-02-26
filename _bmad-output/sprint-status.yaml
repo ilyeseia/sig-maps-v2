@@ -4,19 +4,19 @@
 
 project: SIG Maps V2
 current_epic: 1
-last_updated: 2026-02-26
+last_updated: 2026-02-26T16:15:00Z
 
 epics:
   1:
     name: "Foundation & Authentication"
-    status: backlog
+    status: in-progress
     stories:
       1-1-project-setup:
         name: "Project Setup"
-        status: backlog
+        status: done
       1-2-user-registration:
         name: "User Registration"
-        status: backlog
+        status: ready-for-dev
       1-3-user-login:
         name: "User Login"
         status: backlog
