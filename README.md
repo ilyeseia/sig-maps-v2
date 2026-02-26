@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub commits](https://img.shields.io/github/commits-since/ilyeseia/sig-maps-v2/master)](https://github.com/ilyeseia/sig-maps-v2/commits/master)
-[![Architecture](https://img.shields.io/badge/Architecture-Micro--services-blue)](https://github.com/ilyeseia/sig-maps-v2/blob/master/_bmad-output/planning-artifacts/architecture.md)
+[![Architecture](https://img.shields.io/badge/Architecture-Microservices-blue)](https://github.com/ilyeseia/sig-maps-v2/blob/master/_bmad-output/planning-artifacts/architecture.md)
 
 <div dir="rtl">
 
@@ -158,7 +158,7 @@ npm install
 # تشغيل قاعدة البيانات
 docker-compose up -d postgres
 
-# تشغيل Trazimations
+# تشغيل الترحيلات
 cd backend
 npx prisma migrate dev
 
@@ -196,17 +196,33 @@ npm run dev
 | Epics & Stories | ✅ مكتمل |
 | Readiness Check | ✅ مكتمل |
 
-### Development Status: 🔄 قيد التنفيذ (3% مكتمل)
+### Development Status: 🔄 قيد التنفيذ (7% مكتمل)
 
 - **Total Epics:** 6
 - **Total Stories:** 29
-- **Stories Completed:** 1/29 (Story 1-1: Project Setup ✅)
+- **Stories Completed:** 2/29 (✅ Story 1-1, ✅ Story 1-2)
 - **Current Epic:** Epic 1: Foundation & Authentication
 - **Estimated Timeline:** 7-11 أسابيع
 
 ---
 
 ## 📝 أحدث التحديثات
+
+### 2026-02-26: Story 1-2 (User Registration) ✅ مكتمل
+
+**Frontend:**
+- ✅ Registration page (/register) with full form
+  - Name, email, password, confirm password, language preference
+  - Client-side validation (8+ chars, mixed case, number)
+  - Loading states and error display
+  - Redirect to login on success
+- ✅ Forgot password page (/forgot-password)
+- ✅ Login page update (added divider and forgot password link)
+
+**Backend:**
+- ✅ Already implemented in Story 1-1
+
+**التالي:** Story 1-3 (User Login - frontend exists, needs integration testing)
 
 ### 2026-02-26: Story 1-1 (Project Setup) ✅ مكتمل
 
@@ -228,7 +244,7 @@ npm run dev
 - ✅ Docker Compose (4 containers: postgres, redis, backend, frontend)
 - ✅ Health checks + dependencies
 
-**التالي:** Story 1-2 (User Registration - already implemented, testing pending)
+**التالي:** Story 1-2 (User Registration)
 
 ---
 
