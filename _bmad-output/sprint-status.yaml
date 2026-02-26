@@ -1,0 +1,130 @@
+# Sprint Status Tracker - SIG Maps V2
+# Updated by BMad agents during implementation
+# STATUS VALUES: backlog | ready-for-dev | in-progress | review | done
+
+project: SIG Maps V2
+current_epic: 1
+last_updated: 2026-02-26
+
+epics:
+  1:
+    name: "Foundation & Authentication"
+    status: backlog
+    stories:
+      1-1-project-setup:
+        name: "Project Setup"
+        status: backlog
+      1-2-user-registration:
+        name: "User Registration"
+        status: backlog
+      1-3-user-login:
+        name: "User Login"
+        status: backlog
+      1-4-password-reset:
+        name: "Password Reset"
+        status: backlog
+      1-5-logout:
+        name: "Logout"
+        status: backlog
+      1-6-session-management:
+        name: "Session Management"
+        status: backlog
+
+  2:
+    name: "Core Map Features"
+    status: backlog
+    stories:
+      2-1-map-initialization:
+        name: "Map Initialization"
+        status: backlog
+      2-2-layer-panel:
+        name: "Layer Panel"
+        status: backlog
+      2-3-features-display:
+        name: "Features Display"
+        status: backlog
+      2-4-feature-selection:
+        name: "Feature Selection"
+        status: backlog
+      2-5-feature-filter:
+        name: "Feature Filter"
+        status: backlog
+      2-6-map-controls:
+        name: "Map Controls"
+        status: backlog
+      2-7-feature-pagination:
+        name: "Feature Pagination"
+        status: backlog
+
+  3:
+    name: "Drawing Tools"
+    status: backlog
+    stories:
+      3-1-draw-points:
+        name: "Draw Points"
+        status: backlog
+      3-2-draw-lines:
+        name: "Draw Lines"
+        status: backlog
+      3-3-draw-polygons:
+        name: "Draw Polygons"
+        status: backlog
+      3-4-edit-features:
+        name: "Edit Features"
+        status: backlog
+      3-5-delete-features:
+        name: "Delete Features"
+        status: backlog
+
+  4:
+    name: "Data Export"
+    status: backlog
+    stories:
+      4-1-export-geojson:
+        name: "Export GeoJSON"
+        status: backlog
+      4-2-export-kml:
+        name: "Export KML"
+        status: backlog
+      4-3-export-shapefile:
+        name: "Export Shapefile"
+        status: backlog
+      4-4-export-progress-history:
+        name: "Export Progress & History"
+        status: backlog
+
+  5:
+    name: "User Management"
+    status: backlog
+    stories:
+      5-1-user-list:
+        name: "User List"
+        status: backlog
+      5-2-user-role-management:
+        name: "User Role Management"
+        status: backlog
+      5-3-user-status-management:
+        name: "User Status Management"
+        status: backlog
+      5-4-user-profile:
+        name: "User Profile"
+        status: backlog
+
+  6:
+    name: "Localization"
+    status: backlog
+    stories:
+      6-1-arabic-rtl-interface:
+        name: "Arabic RTL Interface"
+        status: backlog
+      6-2-french-ltr-interface:
+        name: "French LTR Interface"
+        status: backlog
+      6-3-localized-feature-names:
+        name: "Localized Feature Names"
+        status: backlog
+
+notes: |
+  Sprint status initialized by Scrum Master.
+  Ready for Readiness Check validation.
+  Start with Epic 1, Story 1-1 after GO decision.
