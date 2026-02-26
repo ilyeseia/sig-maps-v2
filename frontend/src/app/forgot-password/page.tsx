@@ -23,6 +23,11 @@ export default function ForgotPasswordPage() {
 
       const data = await response.json();
       setSuccess(true);
+      
+      // For development: Log message (backend logs token to console)
+      console.log('✅ Password reset requested successfully');
+      console.log('📧 In production: Email will be sent to:', email);
+      console.log('🔧 In development: Check Backend console for reset token');
     } catch (error) {
       console.error('Password reset request failed:', error);
       // Still show success to avoid revealing email existence
@@ -60,6 +65,9 @@ export default function ForgotPasswordPage() {
                 </div>
                 <p className="mt-2 text-sm">
                   إذا كان البريد الإلكتروني {email} مسجلاً، فسيتم إرسال رابط إعادة تعيين كلمة المرور إليه.
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  💡 في التطوير: تحقق من Backend console للرابط
                 </p>
               </div>
               <a href="/login" className="btn btn-primary w-full">
