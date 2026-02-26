@@ -9,9 +9,10 @@ interface LayerPanelProps {
 }
 
 export default function LayerPanel({ onClose }: LayerPanelProps) {
-  const { layers, setLayers, toggleLayerVisibility } = useLayerStore();
+  const { layers, setLayers, toggleLayerVisibility, isVisible, togglePanel } = useLayerStore();
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateLayer, setShowCreateLayer] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [newLayer, setNewLayer] = useState({
     name_ar: '',
     name_fr: '',
@@ -40,6 +41,13 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
       setIsLoading(false);
     }
   };
+
+  // Filter layers by search query
+  const filteredLayers = layers.filter((layer) =>
+    searchQuery === '' ||
+    layer.name_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    layer.name_fr.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleCreateLayer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,9 +141,9 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
                 onChange={(e) => setNewLayer({ ...newLayer, geometry_type: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               >
-                <option value="POINT">نقطة (Point)</option>
-                <option value="LINE">خط (Line)</option>
-                <option value="POLYGON">منطقة (Polygon)</option>
+                <option value="POINT">نقطة</option>
+                <option value="LINE">خط</option>
+                <option value="POLYGON">منطقة</option>
               </select>
             </div>
 
@@ -203,6 +211,33 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
         </div>
       </div>
 
+      {/* Search Input */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="بحث في الطبقات..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M8 4a4 4 0 100 8 4 4 0 000-8zM12.293 12.707a1 1 0 001.414 0l-4-3.996M13.5 13.5l-2.007-2.007a1 1 0 00-1.414-1.414l3.007-3.007 3.007 3.007a1 1 0 001.414 1.414z" />
+          </svg>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 10h.005l-.01-5.005M1 10a5 5 0 110 10h16a5 5 0 110-10z" />
+                <path d="M1 10a9 9 0 1118-9 9 0 011-18z" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Layer List */}
       <div className="flex-1 overflow-y-auto p-4">
         {isLoading ? (
@@ -210,20 +245,26 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="mt-2 text-sm text-gray-500">جاري تحميل الطبقات...</p>
           </div>
-        ) : layers.length === 0 ? (
+        ) : filteredLayers.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-4xl mb-2">🗺️</div>
-            <p className="text-gray-500 text-sm">لا توجد طبقات حالياً</p>
-            <button
-              onClick={() => setShowCreateLayer(true)}
-              className="mt-4 btn btn-primary text-sm"
-            >
-              + إنشاء طبقة
-            </button>
+            <div className="text-4xl mb-2">
+              {searchQuery ? '🔍' : '🗺️'}
+            </div>
+            <p className="text-gray-500 text-sm">
+              {searchQuery ? 'لا توجد نتائج' : 'لا توجد طبقات حالياً'}
+            </p>
+            {!searchQuery && (
+              <button
+                onClick={() => setShowCreateLayer(true)}
+                className="mt-4 btn btn-primary text-sm"
+              >
+                + إنشاء طبقة
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
-            {layers.map((layer) => (
+            {filteredLayers.map((layer) => (
               <div
                 key={layer.id}
                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
@@ -276,7 +317,7 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
       </div>
 
       {/* Footer */}
-      {!isLoading && layers.length > 0 && (
+      {!isLoading && filteredLayers.length > 0 && (
         <div className="p-4 border-t border-gray-200">
           <button
             onClick={() => setShowCreateLayer(true)}
@@ -284,6 +325,13 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
           >
             + إضافة طبقة
           </button>
+        </div>
+      )}
+
+      {/* Search info */}
+      {searchQuery && filteredLayers.length > 0 && (
+        <div className="px-4 py-2 bg-gray-50 text-xs text-gray-600 text-center border-t border-gray-200">
+          {filteredLayers.length} من {layers.length} طبقات
         </div>
       )}
     </div>

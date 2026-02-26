@@ -48,7 +48,7 @@ epics:
         status: done
       2-5-feature-filter:
         name: "Feature Filter"
-        status: ready-for-dev
+        status: done
       2-6-map-controls:
         name: "Map Controls"
         status: ready-for-dev
