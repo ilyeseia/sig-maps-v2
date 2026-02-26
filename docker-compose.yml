@@ -45,14 +45,14 @@ services:
       JWT_SECRET: your-secret-key-change-this-in-production-min-32-characters
       JWT_ACCESS_EXPIRY: 24h
       JWT_REFRESH_EXPIRY: 7d
-      PORT: 3001
+      PORT: 3002
       NODE_ENV: development
       FRONTEND_URL: http://localhost:3000
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BCRYPT_COST: 12
     ports:
-      - "3001:3001"
+      - "3002:3002"
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,7 +73,7 @@ services:
     container_name: sig-maps-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3002
       NEXT_PUBLIC_MAP_TILE_URL: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     ports:
       - "3000:3000"
