@@ -39,6 +39,9 @@ epics:
         status: done
       2-2-layer-panel:
         name: "Layer Panel"
+        status: done
+      2-3-features-display:
+        name: "Features Display"
         status: ready-for-dev
       2-2-layer-panel:
         name: "Layer Panel"
