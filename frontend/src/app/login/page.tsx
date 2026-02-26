@@ -1,17 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuthStore } from '../store/auth-store';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       const response = await fetch('http://localhost:3001/api/auth/login', {
@@ -19,26 +24,51 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Login failed');
+        throw new Error(data.error?.message || 'فشل تسجيل الدخول');
       }
 
-      // Store tokens
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store auth in Zustand
+      setAuth(data.accessToken, data.refreshToken, data.user);
+
+      // Remember me preferences
+      if (formData.rememberMe) {
+        localStorage.setItem('rememberEmail', formData.email);
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberEmail');
+        localStorage.removeItem('rememberMe');
+      }
 
       // Redirect to map
       window.location.href = '/map';
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Load remembered email on mount
+  useState(() => {
+    const rememberedEmail = localStorage.getItem('rememberEmail');
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    if (rememberedEmail && rememberMe) {
+      setFormData({
+        email: rememberedEmail,
+        password: '',
+        rememberMe: true,
+      });
+    }
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
@@ -64,6 +94,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 البريد الإلكتروني
@@ -79,6 +110,7 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 كلمة المرور
@@ -94,7 +126,20 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={formData.rememberMe}
+                  onChange={(e) => setFormData({ ...formData, rememberMe: e.target.checked })}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
+                  تذكرني
+                </label>
+              </div>
               <a
                 href="/forgot-password"
                 className="text-sm text-primary hover:text-primary-hover"
@@ -103,25 +148,38 @@ export default function LoginPage() {
               </a>
             </div>
 
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">أو</span>
-              </div>
-            </div>
-
+            {/* Submit Button */}
             <button
               type="submit"
-              className="w-full btn btn-primary text-base"
+              disabled={loading}
+              className="w-full btn btn-primary text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              تسجيل الدخول
+              {loading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  جاري تسجيل الدخول...
+                </span>
+              ) : (
+                'تسجيل الدخول'
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-500">أو</span>
+            </div>
+          </div>
+
+          {/* Register Link */}
+          <div className="text-center">
             <p className="text-sm text-gray-600">
               ليس لديك حساب؟{' '}
               <a href="/register" className="text-primary hover:text-primary-hover font-medium">
