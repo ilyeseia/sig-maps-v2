@@ -4,7 +4,7 @@
 
 project: SIG Maps V2
 current_epic: 1
-last_updated: 2026-02-26T16:30:00Z
+last_updated: 2026-02-26T16:45:00Z
 
 epics:
   1:
@@ -19,6 +19,9 @@ epics:
         status: done
       1-3-user-login:
         name: "User Login"
+        status: done
+      1-4-password-reset:
+        name: "Password Reset"
         status: ready-for-dev
       1-3-user-login:
         name: "User Login"
