@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuthStore } from '../../store/auth-store';
 import { apiClient } from '../../lib/api-client';
+import MapControls from './MapControls';
 
 // Algiers coordinates
 const MAP_CENTER: [number, number] = [36.7538, 3.0588];
@@ -213,6 +214,13 @@ export default function Map() {
           })}
         </MapContainer>
 
+        {/* Custom Map Controls */}
+        <MapControls onResetView={() => {
+          setSelectedFeature(null);
+          setIsEditing(false);
+          setIsDeleting(false);
+        }} />
+
         {/* Feature Popup (when a feature is selected) */}
         {selectedFeature && (
           <div className="absolute top-4 left-4 right-4 z-10">
@@ -234,7 +242,7 @@ export default function Map() {
                         {selectedFeature.attributes?.name || selectedFeature.layer?.name_ar || 'Feature'}
                       </h3>
                       <p className="text-xs text-gray-500">
-                        {selectedFeature.geometry?.type}
+                        {selectedFeature.geometry?.type} • {selectedFeature.layer?.name_ar}
                       </p>
                     </>
                   )}
@@ -248,8 +256,8 @@ export default function Map() {
                         className="p-2 hover:bg-gray-100 rounded-md text-gray-600"
                         title="تعديل"
                       >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.662 3.712 1.875 1.875 0 001.887-1.688l-3.736-3.736a1.875 1.875 0 01-.887.062L5.25 4.251l-3.736 3.736a1.875 1.875 0 00-.887-3.736L9.97 2.414a1.875 1.875 0 002.505 4.251l6.746 6.747a1.875 1.875 0 003.712 2.648c.272.27.469.531.71.865.0 .396-.192.812-.312 1.187-.09.42.383-.795.763-1.126.077-.32.166-.648.233-1 .06-.063.353-.145.688-.239 1.07-.094.386-.214.736-.358 1.065-.144.33-.326.633-.565 1.063-.239.43-.45.96-.724 1.592-.324.665-.562 1.336-.708 1.965.144.63.297 1.308.699 2.015.399.706.706 1.373 1.373 1.996 0 .706.327 1.536.685 2.17 1.012.524 1.893.66 3.003.314.581.292 1.063 1.063 1.086 0 2.057.043.552.038 1.294.007 1.876.052 2.459.062.845.031 1.488-.14 2.922-.393 4.258-.872 5.224 2.669 1.762 6.064 2.508 8.249.437 1.855.625 3.394.969 4.907.298 2.508 3.403.258 4.258.044 1.926.393 3.392 1.926.392 4.258 6.972 50.6 1.096 56.667 0 3.238-1.499 6.411-.27.555.518-1.475.953-1.475 1.977 0 .56.551 1.148.672 1.772 1.772.947 3.258 1.732 5.507 5.507 9.754 3.255 5.507-5.507 7.048 0-1.462.474-3.05.728-3.057 5.506 0 2.518.456 4.79-1.619 2.316-4.776-2.316-8.063 0-4.288 1.526-7.975 4.549-3.057 3.258-4.776 4.478-2.788z" />
+                        <svg className="w-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.662 3.712 1.875 1.875 0 001.887-1.688l-3.736-3.736a1.875 1.875 0 01-.887.062L5.25 4.251l-3.736 3.736a1.875 1.875 0 01-.887-3.736L9.97 2.414a1.875 1.875 0 002.505 4.251l6.746 6.747a1.875 1.875 0 003.712 2.648c.272.27.469.531.71.865.0 .396-.192.812-.312 1.187-.09.42.383-.795.763-1.126.077-.32.166-.648.233-1 .06-.063.353-.145.688-.239 1.07-.094.386-.214.736-.358 1.065-.144.33-.326.633-.565 1.063-.239.43-.45.96-.724 1.592-.324.665-.562 1.336-.708 1.965.144.63.297 1.308.699 2.015.399.706.706 1.373 1.996 0 2.057.043.552.038 1.294.007 1.876.052 2.459.062.845.031 1.488-.14 2.922-.393 4.258-.872 5.224 2.669 1.762 6.064 2.508 8.249.437 1.855.625 3.394.969 4.907.298 2.508 3.403.258 4.258.044 1.926.393 3.392 1.926 392 4.258 6.972 50.6 1.096 56.667 0 3.238-1.499 6.411-.27.555.518-1.475.953-1.475 1.977 0 .56.551 1.148.672 1.772 1.772.947 3.258 1.732 5.507 5.507 9.754 3.255 5.507-5.507 7.048 0-1.462.474-3.05.728-3.057 5.506 0 2.518.456 4.79-1.619 2.316-4.776-2.316-8.063 0-4.288 1.526-7.975 4.549-3.057 3.258-4.776 4.478-2.788z" />
                         </svg>
                       </button>
                       <button
@@ -257,8 +265,8 @@ export default function Map() {
                         className="p-2 hover:bg-red-50 rounded-md text-red-600"
                         title="حذف"
                       >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6a2.25 2.25 0 012.25 2.25h2.25M14.25 12v2.25m2.25-6.75a2.25 2.25 0 00-4.5 0V3.75m0 0A2.25 2.25 0 013.75 6H3.75m.375 14.25a3.75 3.75 0 00-.75 7.5h.75m0 0a3.75 3.75 0 00.75-7.5m.75 0a3.75 3.75 0 00-.75 7.5h-.75m13.5 0a3.75 3.75 0 00-.75-7.5h-.75M12 20.625c-.58 0-1.125-.031-1.647-.088-.519-.057-.963-.148-1.342-.276-.38-.128-.71-.367-.997-.664-.286-.297-6.523.654-7.5.555z" />
+                        <svg className="w-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6a2.25 2.25 0 012.25 2.25h2.25M14.25 12v2.25m2.25-6.75a2.25 2.25 0 00-4.5 0V3.75m-1.0 0A2.25 2.25 0 00-3.75 6H3.75m.375 14.25a3.75 3.75 0 00-.75 7.5h.75m0 0a3.75 3.75 0 00-.75-7.5m.75 0a3.75 3.75 0 00-.75 7.5h-.75M12 20.625c-.58 0-1.125-.031-1.647-.088-.519-.057-.963-.148-1.342-.276-.38-.128-.71-.367-.997-.664-.286-.297-6.523.654-7.5.555z" />
                         </svg>
                       </button>
                     </>
@@ -273,11 +281,11 @@ export default function Map() {
                     title={isEditing ? 'إلغاء' : 'إغلاق'}
                   >
                     {isEditing ? (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <svg className="w-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <svg className="w-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     )}
