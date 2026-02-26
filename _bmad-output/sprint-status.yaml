@@ -4,7 +4,7 @@
 
 project: SIG Maps V2
 current_epic: 2
-last_updated: 2026-02-26T17:45:00Z
+last_updated: 2026-02-26T19:15:00Z
 
 epics:
   1:
@@ -45,13 +45,13 @@ epics:
         status: done
       2-4-feature-selection:
         name: "Feature Selection"
-        status: backlog
+        status: done
       2-5-feature-filter:
         name: "Feature Filter"
-        status: backlog
+        status: ready-for-dev
       2-6-map-controls:
         name: "Map Controls"
-        status: backlog
+        status: ready-for-dev
       2-7-feature-pagination:
         name: "Feature Pagination"
         status: backlog
@@ -126,11 +126,11 @@ epics:
 
 notes: |
   Epic 1: Foundation & Authentication ✅ COMPLETED (6/6 stories)
-  Epic 2: Core Map Features 🔄 IN PROGRESS (3/6 stories done)
+  Epic 2: Core Map Features 🔄 IN PROGRESS (4/7 stories done)
     - Story 2-1: Map Initialization ✅
     - Story 2-2: Layer Panel ✅
-    - Story 2-3: Features Display ✅ (NEW)
-    - Story 2-4: Feature Selection 🎯 READY
-    - Story 2-5: Feature Filter ⏳ NOT STARTED
+    - Story 2-3: Features Display ✅
+    - Story 2-4: Feature Selection ✅ (NEW)
+    - Story 2-5: Feature Filter 🎯 READY
     - Story 2-6: Map Controls 🎯 READY
     - Story 2-7: Feature Pagination ⏳ NOT STARTED
