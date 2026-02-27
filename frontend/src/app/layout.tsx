@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const tajawal = Tajawal({ 
   subsets: ['arabic', 'latin'], 
   variable: '--font-tajawal',
-  weight: ['200', '300', '400', '500', '700', '800', '900'],
+  weight: ['400', '500', '700', '800', '900'],  // Primary weights only
   display: 'swap',
 });
 
