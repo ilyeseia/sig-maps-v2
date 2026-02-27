@@ -3,7 +3,12 @@ import { Inter, Tajawal } from 'next/font/google';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const tajawal = Tajawal({ subsets: ['arabic', 'latin'], variable: '--font-tajawal' });
+const tajawal = Tajawal({ 
+  subsets: ['arabic', 'latin'], 
+  variable: '--font-tajawal',
+  weight: ['200', '300', '400', '500', '700', '800', '900'],
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'SIG Maps V2 - نظام معلومات جغرافي متعدد اللغات',

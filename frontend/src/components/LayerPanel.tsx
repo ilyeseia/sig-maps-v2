@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLayerStore } from '../../store/layer-store';
-import { apiClient } from '../../lib/api-client';
+import { useLayerStore } from '../store/layer-store';
+import { apiClient } from '../lib/api-client';
 
 interface LayerPanelProps {
   onClose: () => void;
