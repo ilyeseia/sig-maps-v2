@@ -14,10 +14,10 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
   const [showCreateLayer, setShowCreateLayer] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newLayer, setNewLayer] = useState({
-    name_ar: '',
-    name_fr: '',
-    geometry_type: 'POINT' as 'POINT' | 'LINE' | 'POLYGON',
-    is_visible: true,
+    nameAr: '',
+    nameFr: '',
+    geometryType: 'POINT' as 'POINT' | 'LINE' | 'POLYGON',
+    isVisible: true,
   });
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
@@ -45,8 +45,8 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
   // Filter layers by search query
   const filteredLayers = layers.filter((layer) =>
     searchQuery === '' ||
-    layer.name_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    layer.name_fr.toLowerCase().includes(searchQuery.toLowerCase())
+    layer.nameAr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    layer.nameFr.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleCreateLayer = async (e: React.FormEvent) => {
@@ -62,10 +62,10 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
       
       // Reset form
       setNewLayer({
-        name_ar: '',
-        name_fr: '',
-        geometry_type: 'POINT',
-        is_visible: true,
+        nameAr: '',
+        nameFr: '',
+        geometryType: 'POINT',
+        isVisible: true,
       });
       setShowCreateLayer(false);
     } catch (err: any) {
@@ -108,8 +108,8 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
               </label>
               <input
                 type="text"
-                value={newLayer.name_ar}
-                onChange={(e) => setNewLayer({ ...newLayer, name_ar: e.target.value })}
+                value={newLayer.nameAr}
+                onChange={(e) => setNewLayer({ ...newLayer, nameAr: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 placeholder="مثال: أنابيب المياه"
@@ -123,8 +123,8 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
               </label>
               <input
                 type="text"
-                value={newLayer.name_fr}
-                onChange={(e) => setNewLayer({ ...newLayer, name_fr: e.target.value })}
+                value={newLayer.nameFr}
+                onChange={(e) => setNewLayer({ ...newLayer, nameFr: e.target.value })}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 placeholder="Ex: conduites d'eau"
@@ -137,8 +137,8 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
                 نوع العنصر
               </label>
               <select
-                value={newLayer.geometry_type}
-                onChange={(e) => setNewLayer({ ...newLayer, geometry_type: e.target.value as any })}
+                value={newLayer.geometryType}
+                onChange={(e) => setNewLayer({ ...newLayer, geometryType: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               >
                 <option value="POINT">نقطة</option>
@@ -152,8 +152,8 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
               <input
                 type="checkbox"
                 id="isVisible"
-                checked={newLayer.is_visible}
-                onChange={(e) => setNewLayer({ ...newLayer, is_visible: e.target.checked })}
+                checked={newLayer.isVisible}
+                onChange={(e) => setNewLayer({ ...newLayer, isVisible: e.target.checked })}
                 className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
               />
               <label htmlFor="isVisible" className="ml-2 block text-sm text-gray-700">
@@ -164,7 +164,7 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isCreating || !newLayer.name_ar || !newLayer.name_fr}
+              disabled={isCreating || !newLayer.nameAr || !newLayer.nameFr}
               className="w-full btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCreating ? 'جاري الإنشاء...' : 'إنشاء طبقة'}
@@ -273,7 +273,7 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
                 {/* Checkbox */}
                 <input
                   type="checkbox"
-                  checked={layer.is_visible}
+                  checked={layer.isVisible}
                   onChange={(e) => {
                     e.stopPropagation();
                     toggleLayerVisibility(layer.id);
@@ -283,13 +283,13 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
 
                 {/* Icon based on geometry type */}
                 <div className="flex-shrink-0">
-                  {layer.geometry_type === 'POINT' && (
+                  {layer.geometryType === 'POINT' && (
                     <span className="text-lg">📍</span>
                   )}
-                  {layer.geometry_type === 'LINE' && (
+                  {layer.geometryType === 'LINE' && (
                     <span className="text-lg">〰</span>
                   )}
-                  {layer.geometry_type === 'POLYGON' && (
+                  {layer.geometryType === 'POLYGON' && (
                     <span className="text-lg">🔷</span>
                   )}
                 </div>
@@ -297,17 +297,17 @@ export default function LayerPanel({ onClose }: LayerPanelProps) {
                 {/* Layer Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {layer.name_ar}
+                    {layer.nameAr}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {layer.feature_count || 0} ميزات • {layer.geometry_type}
+                    {layer.featureCount || 0} ميزات • {layer.geometryType}
                   </p>
                 </div>
 
                 {/* Visibility Indicator */}
                 <div
                   className={`w-2 h-2 rounded-full ${
-                    layer.is_visible ? 'bg-green-500' : 'bg-gray-300'
+                    layer.isVisible ? 'bg-green-500' : 'bg-gray-300'
                   }`}
                 />
               </div>

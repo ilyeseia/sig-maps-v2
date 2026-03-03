@@ -2,11 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useMap } from 'react-leaflet';
-import {
-  FeatureGroup,
-  EditControl,
-  DrawMarker,
-} from 'react-leaflet-draw';
+import { FeatureGroup } from 'react-leaflet';
+import { EditControl } from 'react-leaflet-draw';
 import L from 'leaflet';
 
 interface DrawingTool {
@@ -32,7 +29,8 @@ export default function DrawingManager({
   const map = useMap();
 
   const onCreated = useCallback((e: any) => {
-    const { layerType, layer } = e;    const feature = layer.toGeoJSON();
+    const { layerType, layer } = e;
+    const feature = layer.toGeoJSON();
 
     onDrawEnd(feature);
   }, [onDrawEnd]);
@@ -64,35 +62,50 @@ export default function DrawingManager({
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
-          draw={
-            <DrawMarker />
-          }
+          draw={{
+            marker: true,
+            polyline: false,
+            polygon: false,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+          }}
         />
       )}
 
-      {/* Draw Line Tool - TO DO in future stories */}
+      {/* Draw Line Tool */}
       {activeTool === 'polyline' && (
         <EditControl
           position="topleft"
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
-          draw={
-            <EditControl.Polyline />
-          }
+          draw={{
+            marker: false,
+            polyline: true,
+            polygon: false,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+          }}
         />
       )}
 
-      {/* Draw Polygon Tool - TO DO in future stories */}
+      {/* Draw Polygon Tool */}
       {activeTool === 'polygon' && (
         <EditControl
           position="topleft"
           onCreated={onCreated}
           onEdited={onEdited}
           onDeleted={onDeleted}
-          draw={
-            <EditControl.Polygon />
-          }
+          draw={{
+            marker: false,
+            polyline: false,
+            polygon: true,
+            rectangle: false,
+            circle: false,
+            circlemarker: false,
+          }}
         />
       )}
     </>

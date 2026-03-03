@@ -2,11 +2,13 @@ import { create } from 'zustand';
 
 interface Layer {
   id: string;
-  name: string;
+  nameAr: string;
+  nameFr: string;
   description: string;
   geometryType: string;
   isVisible: boolean;
   zIndex: number;
+  featureCount?: number;
 }
 
 interface LayerPanelState {
