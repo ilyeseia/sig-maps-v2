@@ -91,6 +91,8 @@ model Feature {
 
   @@index([layerId])
   @@index([createdAt])
+  @@index([layerId, createdAt])  // Composite index for filtered queries
+  @@index([geometry])  // For spatial queries
   @@map("features")
 }
 

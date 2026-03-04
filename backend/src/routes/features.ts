@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -11,21 +10,15 @@ const prisma = new PrismaClient();
 // All feature routes require authentication
 router.use(authenticate);
 
-// Validation schemas
+// Validation schemas with GeoJSON validation
 const createFeatureSchema = z.object({
   layer_id: z.string().uuid('Invalid layer ID'),
-  geometry: z.object({
-    type: z.enum(['Point', 'LineString', 'Polygon']),
-    coordinates: z.any(), // Array of coordinate arrays
-  }),
+  geometry: GeoJSONGeometrySchema,
   attributes: z.record(z.any()).optional(),
 });
 
 const updateFeatureSchema = z.object({
-  geometry: z.object({
-    type: z.enum(['Point', 'LineString', 'Polygon']),
-    coordinates: z.any().optional(),
-  }).optional(),
+  geometry: GeoJSONGeometrySchema.optional(),
   attributes: z.record(z.any()).optional(),
 });
 
