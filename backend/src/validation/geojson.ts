@@ -46,29 +46,32 @@ export const GeoJSONFeatureSchema = z.object({
 
 // Validator function
 export function validateGeoJSON(geometry: unknown): { valid: boolean; error?: string } {
-  try {
-    const result = GeoJSONGeometrySchema.safeParse(geometry);
-    if (!result.success) {
-      return { valid: false, error: result.error.errors.map(e => e.message).join(', ') } };
-    }
-    
-    // Additional validation for polygons
-    if (geometry && (geometry as any).type === 'Polygon') {
-      const coords = (geometry as any).coordinates;
-      // Check if polygon is closed (first point equals last point)
-      coords.forEach((ring: any) => {
-        const first = ring[0];
-        const last = ring[ring.length - 1];
-        if (JSON.stringify(first) !== JSON.stringify(last)) {
-          throw new Error('Polygon ring must be closed (first point equals last point)');
-        }
-      });
-    }
-    
-    return { valid: true };
-  } catch (error: any) {
-    return { valid: false, error: error.message };
+  const result = GeoJSONGeometrySchema.safeParse(geometry);
+  
+  if (!result.success) {
+    return { 
+      valid: false, 
+      error: result.error.errors.map(e => e.message).join(', ') 
+    };
   }
+  
+  // Additional validation for polygons
+  if (geometry && (geometry as any).type === 'Polygon') {
+    const coords = (geometry as any).coordinates;
+    // Check if polygon is closed (first point equals last point)
+    for (const ring of coords) {
+      const first = ring[0];
+      const last = ring[ring.length - 1];
+      if (JSON.stringify(first) !== JSON.stringify(last)) {
+        return { 
+          valid: false, 
+          error: 'Polygon ring must be closed (first point equals last point)' 
+        };
+      }
+    }
+  }
+  
+  return { valid: true };
 }
 
 // Middleware for Express

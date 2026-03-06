@@ -1,11 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { GeoJSONGeometrySchema } from '../validation/geojson';
+import { prisma } from '../index';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All feature routes require authentication
 router.use(authenticate);
@@ -22,10 +22,15 @@ const updateFeatureSchema = z.object({
   attributes: z.record(z.any()).optional(),
 });
 
-// GET /api/features - List features (with optional filters)
+// GET /api/features - List features (with optional filters, pagination, and bbox)
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { layer_id, bbox } = req.query;
+    const { layer_id, bbox, page = '1', limit = '100' } = req.query;
+
+    // Pagination
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = Math.min(parseInt(limit as string) || 100, 500); // Max 500 features per request
+    const offset = (pageNum - 1) * limitNum;
 
     // Build where clause
     const where: any = {};
@@ -34,35 +39,60 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
       where.layerId = layer_id as string;
     }
 
-    // Get features
-    const features = await prisma.feature.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        id: true,
-        layerId: true,
-        geometry: true,
-        attributes: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: true,
-      },
-    });
+    // Bbox filtering (viewport-based loading) - if bbox provided
+    // Note: Would require PostGIS ST_Intersects for spatial filtering
+    // For now, we implement it for future use
+    if (bbox && typeof bbox === 'string') {
+      const [minX, minY, maxX, maxY] = bbox.split(',').map(Number);
+      if (!isNaN(minX) && !isNaN(minY) && !isNaN(maxX) && !isNaN(maxY)) {
+        // TODO: Add PostGIS spatial filter here using ST_Intersects
+        // This would significantly improve performance for large datasets
+        console.log('Bbox filter provided:', { minX, minY, maxX, maxY });
+      }
+    }
 
-    // Return features
+    // Get features with layer data included (N+1 Query Fix)
+    const [features, totalCount] = await Promise.all([
+      prisma.feature.findMany({
+        where,
+        include: {
+          layer: {
+            select: {
+              id: true,
+              name_ar: true,
+              name_fr: true,
+              geometry_type: true,
+              style: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limitNum,
+        skip: offset,
+      }),
+      prisma.feature.count({ where }),
+    ]);
+
+    // Return features with layer data included
     res.json({
       features: features.map((feature) => ({
         id: feature.id,
         layerId: feature.layerId,
         geometry: feature.geometry,
         attributes: feature.attributes,
+        layer: feature.layer, // Layer data included (N+1 Query Fix)
         createdAt: feature.createdAt,
         updatedAt: feature.updatedAt,
         createdBy: feature.createdBy,
       })),
-      count: features.length,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+      },
     });
   } catch (error) {
     next(error);

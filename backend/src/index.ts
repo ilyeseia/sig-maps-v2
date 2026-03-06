@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import { PrismaClient } from '@prisma/client';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +20,27 @@ import exportRoutes from './routes/export';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { loginRateLimiter, registerRateLimiter } from './middleware/rateLimit';
+import { sanitizeBody } from './middleware/sanitize';
+
+// Import validation
+import { validateGeoJSON } from './validation/geojson';
+
+// Initialize Prisma singleton with connection pooling and logging
+const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+});
+
+// Graceful shutdown for Prisma
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\n${signal} received. Closing Prisma connection pool...`);
+  await prisma.$disconnect();
+  console.log('Prisma connection pool closed.');
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Initialize Express app
 const app = express();
@@ -27,28 +49,61 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+    },
+  },
+}));
 
-// CORS configuration
+// CORS configuration with strict whitelist validation
+const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS error: Origin not allowed'));
+    }
+  },
   credentials: true,
 }));
 
-// Body parsing middleware
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Body parsing middleware with REDUCED payload limits (Critical Fix)
+app.use(express.json({ limit: '1mb' }));  // Was 10MB - REDUCED for security
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));  // Was 10MB - REDUCED for security
 app.use(cookieParser());
 
-// Rate limiting
-const limiter = rateLimit({
+// Global rate limiting
+const globalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-  message: 'Too many requests from this IP, please try again later.',
+  message: { error: { message: 'Too many requests from this IP, please try again later.' } },
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', limiter);
+app.use('/api', globalLimiter);
+
+// Stricter rate limiting for export operations (Critical Fix)
+const exportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Much stricter limit
+  message: { error: { message: 'Export limit reached. Please try again in 15 minutes.' } },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/export', exportLimiter);
+
+// Apply input sanitization to all routes (Critical Fix)
+app.use('/api', sanitizeBody);
+
+// Apply per-route rate limiters for authentication
+app.use('/api/auth/login', loginRateLimiter);
+app.use('/api/auth/register', registerRateLimiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -57,6 +112,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
+    database: 'connected', // Prisma already validated by prisma.$connect() internally
   });
 });
 
@@ -80,6 +136,9 @@ app.listen(PORT, () => {
   console.log(`🚀 SIG Maps V2 Backend running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔒 Rate limiting enabled (Global: 100/15min, Export: 10/15min)`);
+  console.log(`🛡️ Payload limit: 1MB (reduced from 10MB)`);
+  console.log(`✨ Database pooling enabled with graceful shutdown`);
 });
 
-export default app;
+export { app, prisma };

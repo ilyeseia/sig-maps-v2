@@ -47,12 +47,17 @@ services:
       JWT_REFRESH_EXPIRY: 7d
       PORT: 3002
       NODE_ENV: development
-      FRONTEND_URL: http://localhost:3003
+      FRONTEND_URL: https://sig-frontend.tail7d68dd.ts.net/
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BCRYPT_COST: 12
     ports:
       - 3005:3002
+    labels:
+      tsdproxy.enable: "false"
+      tsdproxy.name: "sig-backend"
+      tsdproxy.container_port: "3005"
+      tsdproxy.funnel: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +68,7 @@ services:
       - /app/node_modules
       - exports_volume:/exports
       - prisma_migrations:/app/prisma/migrations
-    command: sh -c "npm install --legacy-peer-deps && npx prisma generate && npx prisma migrate dev && npm run dev"
+    command: sh -c "npm install --legacy-peer-deps && npx prisma generate && npx prisma migrate deploy && npm run dev"
 
   # Frontend (Next.js)
   frontend:
@@ -73,12 +78,12 @@ services:
     container_name: sig-maps-frontend-v2
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3002
+      NEXT_PUBLIC_API_URL: https://sig-backend.tail7d68dd.ts.net/
       NEXT_PUBLIC_MAP_TILE_URL: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     ports:
       - 3003:3000
     labels:
-      tsdproxy.enable: "true"
+      tsdproxy.enable: "false"
       tsdproxy.name: "sig-frontend"
       tsdproxy.container_port: "3003"
       tsdproxy.funnel: "true"
