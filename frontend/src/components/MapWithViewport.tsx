@@ -34,16 +34,16 @@ export default function MapWithViewport() {
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadTimeout, setLoadTimeout] = useState<NodeJS.Timeout | null>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch features based on current viewport
   const loadFeatures = useCallback(async (bbox?: string) => {
     // Debounce to avoid too many requests
-    if (loadTimeout) {
-      clearTimeout(loadTimeout);
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
     }
 
-    const newTimeout = setTimeout(async () => {
+    loadTimeoutRef.current = setTimeout(async () => {
       setLoading(true);
       try {
         // Build URL with bbox parameter
@@ -73,12 +73,13 @@ export default function MapWithViewport() {
         setLoading(false);
       }
     }, 500); // 500ms debounce
-
-    setLoadTimeout(newTimeout);
-  }, [loadTimeout]);
+  }, []); // Now has NO dependencies - no recreation
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
+
+    let isMounted = true;
+    const eventHandlers: Array<() => void> = [];
 
     const loadMap = async () => {
       try {
@@ -89,34 +90,61 @@ export default function MapWithViewport() {
           return;
         }
 
-        if (!mapInstance.current) {
-          mapInstance.current = L.map(mapRef.current, {
-            center: [36.7538, 3.0588] as [number, number],
-            zoom: 12,
-            zoomControl: true,
-          });
+        // Prevent double initialization
+        if (mapInstance.current) {
+          console.warn('Map already initialized');
+          setIsMapLoaded(true);
+          return;
+        }
 
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap',
-            maxZoom: 19,
-          }).addTo(mapInstance.current);
+        if (!isMounted) return;
 
+        // Initialize map
+        const map = L.map(mapRef.current, {
+          center: [36.7538, 3.0588] as [number, number],
+          zoom: 12,
+          zoomControl: true,
+        });
+
+        // Add tile layer
+        const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap',
+          maxZoom: 19,
+        });
+
+        tileLayer.addTo(map);
+
+        mapInstance.current = map;
+
+        // Add viewport change listeners (wrapped to prevent memory leaks)
+        const handleMoveEnd = () => {
+          if (isMounted && mapInstance.current) {
+            const bbox = getBboxFromBounds(mapInstance.current.getBounds());
+            loadFeatures(bbox);
+          }
+        };
+
+        const handleZoomEnd = () => {
+          if (isMounted && mapInstance.current) {
+            const bbox = getBboxFromBounds(mapInstance.current.getBounds());
+            loadFeatures(bbox);
+          }
+        };
+
+        map.on('moveend', handleMoveEnd);
+        map.on('zoomend', handleZoomEnd);
+
+        // Store cleanup functions
+        eventHandlers.push(() => {
+          map.off('moveend', handleMoveEnd);
+          map.off('zoomend', handleZoomEnd);
+        });
+
+        if (isMounted) {
           setIsMapLoaded(true);
 
           // Initial load features without bbox (first page)
           loadFeatures();
-
-          // Add viewport change listener
-          mapInstance.current.on('moveend', () => {
-            const bbox = getBboxFromBounds(mapInstance.current.getBounds());
-            loadFeatures(bbox);
-          });
-
-          // Add zoom change listener
-          mapInstance.current.on('zoomend', () => {
-            const bbox = getBboxFromBounds(mapInstance.current.getBounds());
-            loadFeatures(bbox);
-          });
         }
       } catch (error) {
         console.error('Error loading map:', error);
@@ -125,16 +153,31 @@ export default function MapWithViewport() {
 
     loadMap();
 
+    // Cleanup function
     return () => {
-      if (loadTimeout) {
-        clearTimeout(loadTimeout);
+      isMounted = false;
+
+      // Clear load timeout
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
       }
+
+      // Remove event listeners
+      eventHandlers.forEach(cleanup => cleanup());
+
+      // Remove map instance
       if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
+        try {
+          mapInstance.current.remove();
+        } catch (error) {
+          console.error('Error removing map instance:', error);
+        } finally {
+          mapInstance.current = null;
+        }
       }
     };
-  }, [loadFeatures, loadTimeout]);
+  }, []); // Empty dependencies - run only on mount (fix memory leak)
 
   // Add features to map
   useEffect(() => {
