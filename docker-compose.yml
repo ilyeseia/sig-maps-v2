@@ -47,14 +47,14 @@ services:
       JWT_REFRESH_EXPIRY: 7d
       PORT: 3002
       NODE_ENV: development
-      FRONTEND_URL: https://sig-frontend.tail7d68dd.ts.net/
+      FRONTEND_URL: https://sig-frontend.tail7d68dd.ts.net
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BCRYPT_COST: 12
     ports:
       - 3005:3002
     labels:
-      tsdproxy.enable: "false"
+      tsdproxy.enable: "true"
       tsdproxy.name: "sig-backend"
       tsdproxy.container_port: "3005"
       tsdproxy.funnel: "true"
@@ -83,7 +83,7 @@ services:
     ports:
       - 3003:3000
     labels:
-      tsdproxy.enable: "false"
+      tsdproxy.enable: "true"
       tsdproxy.name: "sig-frontend"
       tsdproxy.container_port: "3003"
       tsdproxy.funnel: "true"

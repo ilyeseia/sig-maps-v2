@@ -81,12 +81,19 @@ app.use(helmet({
 }));
 
 // CORS configuration with strict whitelist validation
-const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(o => o.trim());
+const allowedOrigins = (process.env.FRONTEND_URL || '').split(',')
+  .map(o => o.trim())
+  .map(o => o.endsWith('/') ? o.slice(0, -1) : o); // Remove trailing slash
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Remove trailing slash from origin for comparison
+    const normalizedOrigin = origin?.endsWith('/') ? origin.slice(0, -1) : origin;
+
+    if (!normalizedOrigin || allowedOrigins.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
+      logger.warn(`CORS blocked origin: ${normalizedOrigin}. Allowed: ${JSON.stringify(allowedOrigins)}`);
       callback(new Error('CORS error: Origin not allowed'));
     }
   },
