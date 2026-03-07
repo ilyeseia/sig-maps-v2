@@ -2,11 +2,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../index';
 import { z } from 'zod';
+import { cacheGet, cacheSet, invalidateLayerCache, invalidateAllLayerCaches } from '../services/redis';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All layer routes require authentication
 router.use(authenticate);
@@ -45,8 +45,16 @@ const updateLayerSchema = z.object({
 });
 
 // GET /api/layers - List all layers (accessible to all authenticated users)
+// Cache Key: layers:all | TTL: 5 minutes
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    // Try to get from cache first
+    const cached = await cacheGet<any>('layers:all');
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // Cache miss - fetch from database
     const layers = await prisma.layer.findMany({
       orderBy: [
         { z_index: 'asc' },
@@ -68,7 +76,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
       },
     });
 
-    res.json({
+    const response = {
       layers: layers.map((layer) => ({
         id: layer.id,
         name_ar: layer.name_ar,
@@ -80,7 +88,12 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
         created_at: layer.createdAt,
         feature_count: layer._count.features,
       })),
-    });
+    };
+
+    // Cache for 5 minutes (300 seconds)
+    await cacheSet('layers:all', response, { expiresInSeconds: 300 });
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
@@ -166,6 +179,9 @@ router.post('/', requireRole('EDITOR', 'ADMIN'), validate(createLayerSchema), as
       },
     });
 
+    // Invalidate cache
+    await invalidateAllLayerCaches();
+
     res.status(201).json({
       message: 'Layer created successfully',
       layer,
@@ -219,6 +235,10 @@ router.put('/:id', requireRole('EDITOR', 'ADMIN'), validate(updateLayerSchema), 
       },
     });
 
+    // Invalidate cache
+    await invalidateLayerCache(id);
+    await invalidateAllLayerCaches();
+
     res.json({
       message: 'Layer updated successfully',
       layer,
@@ -255,6 +275,10 @@ router.patch('/:id/visibility', requireRole('EDITOR', 'ADMIN'), async (req: Auth
       data: { is_visible: newVisibility },
     });
 
+    // Invalidate cache
+    await invalidateLayerCache(id);
+    await invalidateAllLayerCaches();
+
     res.json({
       message: 'Layer visibility updated successfully',
       layer: {
@@ -289,6 +313,10 @@ router.delete('/:id', requireRole('ADMIN'), async (req: AuthRequest, res: Respon
     await prisma.layer.delete({
       where: { id },
     });
+
+    // Invalidate cache
+    await invalidateLayerCache(id);
+    await invalidateAllLayerCaches();
 
     res.json({
       message: 'Layer deleted successfully',

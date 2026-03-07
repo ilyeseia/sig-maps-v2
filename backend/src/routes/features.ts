@@ -32,67 +32,137 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const limitNum = Math.min(parseInt(limit as string) || 100, 500); // Max 500 features per request
     const offset = (pageNum - 1) * limitNum;
 
-    // Build where clause
-    const where: any = {};
+    let features: any[] = [];
+    let totalCount = 0;
 
-    if (layer_id) {
-      where.layerId = layer_id as string;
-    }
-
-    // Bbox filtering (viewport-based loading) - if bbox provided
-    // Note: Would require PostGIS ST_Intersects for spatial filtering
-    // For now, we implement it for future use
+    // Check if bbox is provided for spatial filtering
     if (bbox && typeof bbox === 'string') {
       const [minX, minY, maxX, maxY] = bbox.split(',').map(Number);
       if (!isNaN(minX) && !isNaN(minY) && !isNaN(maxX) && !isNaN(maxY)) {
-        // TODO: Add PostGIS spatial filter here using ST_Intersects
-        // This would significantly improve performance for large datasets
-        console.log('Bbox filter provided:', { minX, minY, maxX, maxY });
-      }
-    }
+        // Use PostGIS ST_Intersects for spatial filtering
+        // This uses the PostGIS index on the geometry column for fast queries
+        const bboxPolygon = `ST_MakeEnvelope(${minX}, ${minY}, ${maxX}, ${maxY}, 4326)`;
 
-    // Get features with layer data included (N+1 Query Fix)
-    const [features, totalCount] = await Promise.all([
-      prisma.feature.findMany({
-        where,
-        include: {
-          layer: {
-            select: {
-              id: true,
-              name_ar: true,
-              name_fr: true,
-              geometry_type: true,
-              style: true,
+        // Build WHERE clause for layer_id filter
+        const layerFilter = layer_id ? `AND "layer_id" = '${layer_id}'` : '';
+
+        // Use raw query with PostGIS for spatial filtering + layer data
+        const featuresQuery = `
+          SELECT
+            f."id",
+            f."layer_id",
+            f."geometry",
+            f."attributes",
+            f."created_at" AS "createdAt",
+            f."updated_at" AS "updatedAt",
+            f."created_by" AS "createdBy",
+            l."id" AS "layer_id",
+            l."name_ar" AS "layer_name_ar",
+            l."name_fr" AS "layer_name_fr",
+            l."geometry_type" AS "layer_geometry_type",
+            l."style" AS "layer_style"
+          FROM "features" f
+          JOIN "layers" l ON f."layer_id" = l."id"
+          WHERE ST_Intersects(f."geometry"::geometry, ${bboxPolygon}::geometry)
+            ${layerFilter}
+          ORDER BY f."created_at" DESC
+          LIMIT ${limitNum} OFFSET ${offset}
+        `;
+
+        const countQuery = `
+          SELECT COUNT(*) as count
+          FROM "features" f
+          WHERE ST_Intersects(f."geometry"::geometry, ${bboxPolygon}::geometry)
+            ${layerFilter}
+        `;
+
+        const [featuresResult, countResult] = await Promise.all([
+          prisma.$queryRawUnsafe(featuresQuery),
+          prisma.$queryRawUnsafe(countQuery),
+        ]);
+
+        features = featuresResult;
+        totalCount = (countResult as any)[0]?.count || 0;
+      }
+    } else {
+      // No bbox - use standard Prisma query with pagination
+      const where: any = {};
+
+      if (layer_id) {
+        where.layerId = layer_id as string;
+      }
+
+      const [featuresResult, countResult] = await Promise.all([
+        prisma.feature.findMany({
+          where,
+          include: {
+            layer: {
+              select: {
+                id: true,
+                name_ar: true,
+                name_fr: true,
+                geometry_type: true,
+                style: true,
+              },
             },
           },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        take: limitNum,
-        skip: offset,
-      }),
-      prisma.feature.count({ where }),
-    ]);
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: limitNum,
+          skip: offset,
+        }),
+        prisma.feature.count({ where }),
+      ]);
 
-    // Return features with layer data included
+      features = featuresResult;
+      totalCount = countResult;
+    }
+
+    // Transform features response
+    const transformedFeatures = features.map((feature: any) => (
+      bbox ? (
+        // From raw PostGIS query - need to restructure
+        {
+          id: feature.id,
+          layerId: feature.layer_id,
+          geometry: feature.geometry,
+          attributes: feature.attributes,
+          layer: {
+            id: feature.layer_id,
+            name_ar: feature.layer_name_ar,
+            name_fr: feature.layer_name_fr,
+            geometry_type: feature.layer_geometry_type,
+            style: feature.layer_style,
+          },
+          createdAt: feature.createdAt,
+          updatedAt: feature.updatedAt,
+          createdBy: feature.createdBy,
+        }
+      ) : (
+        // From Prisma query - already structured
+        {
+          id: feature.id,
+          layerId: feature.layerId,
+          geometry: feature.geometry,
+          attributes: feature.attributes,
+          layer: feature.layer,
+          createdAt: feature.createdAt,
+          updatedAt: feature.updatedAt,
+          createdBy: feature.createdBy,
+        }
+      )
+    ));
+
     res.json({
-      features: features.map((feature) => ({
-        id: feature.id,
-        layerId: feature.layerId,
-        geometry: feature.geometry,
-        attributes: feature.attributes,
-        layer: feature.layer, // Layer data included (N+1 Query Fix)
-        createdAt: feature.createdAt,
-        updatedAt: feature.updatedAt,
-        createdBy: feature.createdBy,
-      })),
+      features: transformedFeatures,
       pagination: {
         page: pageNum,
         limit: limitNum,
         total: totalCount,
         totalPages: Math.ceil(totalCount / limitNum),
       },
+      spatialFilter: !!bbox, // Indicate if spatial filtering was used
     });
   } catch (error) {
     next(error);

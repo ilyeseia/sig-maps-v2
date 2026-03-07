@@ -26,16 +26,20 @@ import { sanitizeBody } from './middleware/sanitize';
 // Import validation
 import { validateGeoJSON } from './validation/geojson';
 
+// Import Redis service
+import { getRedisClient, closeRedis } from './services/redis';
+
 // Initialize Prisma singleton with connection pooling and logging
 const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
 });
 
-// Graceful shutdown for Prisma
+// Graceful shutdown for Prisma and Redis
 const gracefulShutdown = async (signal: string) => {
-  console.log(`\n${signal} received. Closing Prisma connection pool...`);
+  console.log(`\n${signal} received. Closing connections...`);
   await prisma.$disconnect();
-  console.log('Prisma connection pool closed.');
+  await closeRedis();
+  console.log('All connections closed.');
   process.exit(0);
 };
 
@@ -106,13 +110,23 @@ app.use('/api/auth/login', loginRateLimiter);
 app.use('/api/auth/register', registerRateLimiter);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let redisStatus = 'disconnected';
+  try {
+    const redis = getRedisClient();
+    await redis.ping();
+    redisStatus = 'connected';
+  } catch (error) {
+    redisStatus = 'error';
+  }
+
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
     database: 'connected', // Prisma already validated by prisma.$connect() internally
+    cache: redisStatus // Redis status
   });
 });
 
@@ -132,13 +146,16 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 3001;
 
+// Initialize Redis on startup
+getRedisClient();
+
 app.listen(PORT, () => {
   console.log(`🚀 SIG Maps V2 Backend running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`🔒 Rate limiting enabled (Global: 100/15min, Export: 10/15min)`);
   console.log(`🛡️ Payload limit: 1MB (reduced from 10MB)`);
-  console.log(`✨ Database pooling enabled with graceful shutdown`);
+  console.log(`✨ Database pooling + Redis caching enabled with graceful shutdown`);
 });
 
 export { app, prisma };
