@@ -19,4 +19,3 @@ export const registerRateLimiter = rateLimit({
     },
   },
 });
-EOF-CAT
