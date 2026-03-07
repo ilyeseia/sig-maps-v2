@@ -7,8 +7,8 @@ import { prisma } from '../index';
 
 const router = Router();
 
-// All feature routes require authentication
-router.use(authenticate);
+// GET /api/features - Public access (no auth needed for viewing)
+// All other routes require authentication
 
 // Validation schemas with GeoJSON validation
 const createFeatureSchema = z.object({
@@ -23,7 +23,7 @@ const updateFeatureSchema = z.object({
 });
 
 // GET /api/features - List features (with optional filters, pagination, and bbox)
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { layer_id, bbox, page = '1', limit = '100' } = req.query;
 
@@ -99,9 +99,9 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
             layer: {
               select: {
                 id: true,
-                name_ar: true,
-                name_fr: true,
-                geometry_type: true,
+                nameAr: true,
+                nameFr: true,
+                geometryType: true,
                 style: true,
               },
             },
@@ -130,9 +130,9 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
           attributes: feature.attributes,
           layer: {
             id: feature.layer_id,
-            name_ar: feature.layer_name_ar,
-            name_fr: feature.layer_name_fr,
-            geometry_type: feature.layer_geometry_type,
+            nameAr: feature.layer_name_ar,
+            nameFr: feature.layer_name_fr,
+            geometryType: feature.layer_geometry_type,
             style: feature.layer_style,
           },
           createdAt: feature.createdAt,
@@ -169,8 +169,8 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   }
 });
 
-// GET /api/features/:id - Get feature by ID
-router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
+// GET /api/features/:id - Get feature by ID (public)
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
 
@@ -180,9 +180,9 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
         layer: {
           select: {
             id: true,
-            name_ar: true,
-            name_fr: true,
-            geometry_type: true,
+            nameAr: true,
+            nameFr: true,
+            geometryType: true,
             style: true,
           },
         },
