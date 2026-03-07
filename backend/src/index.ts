@@ -10,6 +10,22 @@ import { PrismaClient } from '@prisma/client';
 // Load environment variables
 dotenv.config();
 
+// Import logger
+import logger, { createRequestLogger } from './services/logger';
+
+// Import environment variables validation
+import { env } from './config/env';
+
+// Import Swagger
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
+
+// Log application startup
+logger.info('🚀 Starting SIG Maps V2 Backend...');
+logger.info(`📚 Environment: ${env.NODE_ENV}`);
+logger.info(`🔧 Port: ${env.PORT}`);
+logger.info(`📊 Log Level: ${env.LOG_LEVEL}`);
+
 // Import routes
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
@@ -36,10 +52,10 @@ const prisma = new PrismaClient({
 
 // Graceful shutdown for Prisma and Redis
 const gracefulShutdown = async (signal: string) => {
-  console.log(`\n${signal} received. Closing connections...`);
+  logger.info(`${signal} received. Closing connections...`);
   await prisma.$disconnect();
   await closeRedis();
-  console.log('All connections closed.');
+  logger.info('All connections closed.');
   process.exit(0);
 };
 
@@ -105,6 +121,30 @@ app.use('/api/export', exportLimiter);
 // Apply input sanitization to all routes (Critical Fix)
 app.use('/api', sanitizeBody);
 
+// Request logging middleware
+app.use('/api', (req, res, next) => {
+  const log = createRequestLogger(req);
+  const start = Date.now();
+
+  // Log request
+  log.http(`${req.method} ${req.path}`, {
+    query: req.query,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  // Capture response
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    log.http(`${req.method} ${req.path} - ${res.statusCode}`, {
+      duration: `${duration}ms`,
+      contentLength: res.get('content-length'),
+    });
+  });
+
+  next();
+});
+
 // Apply per-route rate limiters for authentication
 app.use('/api/auth/login', loginRateLimiter);
 app.use('/api/auth/register', registerRateLimiter);
@@ -126,9 +166,20 @@ app.get('/health', async (req, res) => {
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
     database: 'connected', // Prisma already validated by prisma.$connect() internally
-    cache: redisStatus // Redis status
+    cache: redisStatus, // Redis status
+    logging: 'enabled',
+    swagger: '/api-docs',
   });
 });
+
+// Swagger API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'SIG Maps V2 API',
+}));
+
+logger.info('📚 Swagger API Documentation available at /api-docs');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -143,19 +194,20 @@ app.use(notFoundHandler);
 // Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-const PORT = process.env.PORT || 3001;
-
 // Initialize Redis on startup
 getRedisClient();
 
+// Start server
+const PORT = env.PORT;
+
 app.listen(PORT, () => {
-  console.log(`🚀 SIG Maps V2 Backend running on port ${PORT}`);
-  console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔒 Rate limiting enabled (Global: 100/15min, Export: 10/15min)`);
-  console.log(`🛡️ Payload limit: 1MB (reduced from 10MB)`);
-  console.log(`✨ Database pooling + Redis caching enabled with graceful shutdown`);
+  logger.info(`🚀 SIG Maps V2 Backend running on port ${PORT}`);
+  logger.info(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
+  logger.info(`🔒 Rate limiting enabled (Global: 100/15min, Export: 10/15min)`);
+  logger.info(`🛡️ Payload limit: 1MB (reduced from 10MB)`);
+  logger.info(`✨ Database pooling + Redis caching + Winston logging enabled`);
+  logger.info(`📊 Structured logging with correlation IDs`);
 });
 
 export { app, prisma };
