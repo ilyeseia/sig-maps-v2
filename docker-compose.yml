@@ -45,14 +45,14 @@ services:
       JWT_SECRET: your-secret-key-change-this-in-production-min-32-characters
       JWT_ACCESS_EXPIRY: 24h
       JWT_REFRESH_EXPIRY: 7d
-      PORT: 3002
+      PORT: 3005
       NODE_ENV: development
       FRONTEND_URL: https://sig-frontend.tail7d68dd.ts.net
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BCRYPT_COST: 12
     ports:
-      - 3005:3002
+      - "3005:3005"
     labels:
       tsdproxy.enable: "true"
       tsdproxy.name: "sig-backend"
@@ -78,7 +78,8 @@ services:
     container_name: sig-maps-frontend-v2
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: https://sig-backend.tail7d68dd.ts.net/
+      # Proxy through Next.js rewrites
+      NEXT_PUBLIC_API_URL: "/api"
       NEXT_PUBLIC_MAP_TILE_URL: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
     ports:
       - 3003:3000

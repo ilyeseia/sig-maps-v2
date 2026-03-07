@@ -51,7 +51,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
           SELECT
             f."id",
             f."layer_id",
-            f."geometry",
+            ST_AsGeoJSON(f."geometry")::jsonb as "geometry",
             f."attributes",
             f."created_at" AS "createdAt",
             f."updated_at" AS "updatedAt",
@@ -63,7 +63,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             l."style" AS "layer_style"
           FROM "features" f
           JOIN "layers" l ON f."layer_id" = l."id"
-          WHERE ST_Intersects(f."geometry"::geometry, ${bboxPolygon}::geometry)
+          WHERE ST_Intersects(f."geometry", ST_MakeEnvelope(${minX}, ${minY}, ${maxX}, ${maxY}, 4326)::geometry)
             ${layerFilter}
           ORDER BY f."created_at" DESC
           LIMIT ${limitNum} OFFSET ${offset}
@@ -72,7 +72,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         const countQuery = `
           SELECT COUNT(*) as count
           FROM "features" f
-          WHERE ST_Intersects(f."geometry"::geometry, ${bboxPolygon}::geometry)
+          WHERE ST_Intersects(f."geometry", ST_MakeEnvelope(${minX}, ${minY}, ${maxX}, ${maxY}, 4326)::geometry)
             ${layerFilter}
         `;
 
@@ -85,82 +85,70 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         totalCount = (countResult as any)[0]?.count || 0;
       }
     } else {
-      // No bbox - use standard Prisma query with pagination
-      const where: any = {};
+      // No bbox - use raw query for now (Prisma can't deserialize geometry)
+      const layerFilter = layer_id ? `WHERE "layer_id" = '${layer_id}'` : '';
 
-      if (layer_id) {
-        where.layerId = layer_id as string;
-      }
+      const featuresQuery = `
+        SELECT
+          f."id",
+          f."layer_id",
+          ST_AsGeoJSON(f."geometry")::jsonb as "geometry",
+          f."attributes",
+          f."created_at" AS "createdAt",
+          f."updated_at" AS "updatedAt",
+          f."created_by" AS "createdBy",
+          l."id" AS "layer_id",
+          l."name_ar" AS "layer_name_ar",
+          l."name_fr" AS "layer_name_fr",
+          l."geometry_type" AS "layer_geometry_type",
+          l."style" AS "layer_style"
+        FROM "features" f
+        JOIN "layers" l ON f."layer_id" = l."id"
+        ${layerFilter}
+        ORDER BY f."created_at" DESC
+        LIMIT ${limitNum} OFFSET ${offset}
+      `;
+
+      const countQuery = `
+        SELECT COUNT(*) as count
+        FROM "features" f
+        ${layerFilter}
+      `;
 
       const [featuresResult, countResult] = await Promise.all([
-        prisma.feature.findMany({
-          where,
-          include: {
-            layer: {
-              select: {
-                id: true,
-                nameAr: true,
-                nameFr: true,
-                geometryType: true,
-                style: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: limitNum,
-          skip: offset,
-        }),
-        prisma.feature.count({ where }),
+        prisma.$queryRawUnsafe(featuresQuery),
+        prisma.$queryRawUnsafe(countQuery),
       ]);
 
       features = featuresResult;
-      totalCount = countResult;
+      totalCount = (countResult as any)[0]?.count || 0;
     }
 
-    // Transform features response
-    const transformedFeatures = features.map((feature: any) => (
-      bbox ? (
-        // From raw PostGIS query - need to restructure
-        {
-          id: feature.id,
-          layerId: feature.layer_id,
-          geometry: feature.geometry,
-          attributes: feature.attributes,
-          layer: {
-            id: feature.layer_id,
-            nameAr: feature.layer_name_ar,
-            nameFr: feature.layer_name_fr,
-            geometryType: feature.layer_geometry_type,
-            style: feature.layer_style,
-          },
-          createdAt: feature.createdAt,
-          updatedAt: feature.updatedAt,
-          createdBy: feature.createdBy,
-        }
-      ) : (
-        // From Prisma query - already structured
-        {
-          id: feature.id,
-          layerId: feature.layerId,
-          geometry: feature.geometry,
-          attributes: feature.attributes,
-          layer: feature.layer,
-          createdAt: feature.createdAt,
-          updatedAt: feature.updatedAt,
-          createdBy: feature.createdBy,
-        }
-      )
-    ));
+    // Transform features response (all from raw queries now)
+    const transformedFeatures = features.map((feature: any) => ({
+      id: feature.id,
+      layerId: feature.layer_id,
+      geometry: feature.geometry,
+      attributes: feature.attributes,
+      layer: {
+        id: feature.layer_id,
+        nameAr: feature.layer_name_ar,
+        nameFr: feature.layer_name_fr,
+        geometryType: feature.layer_geometry_type,
+        style: feature.layer_style,
+      },
+      createdAt: feature.createdAt,
+      updatedAt: feature.updatedAt,
+      createdBy: feature.createdBy,
+    }));
 
     res.json({
       features: transformedFeatures,
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limitNum),
+        total: Number(totalCount),
+        totalPages: Math.ceil(Number(totalCount) / limitNum),
       },
       spatialFilter: !!bbox, // Indicate if spatial filtering was used
     });
@@ -174,20 +162,26 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
 
-    const feature = await prisma.feature.findUnique({
-      where: { id },
-      include: {
-        layer: {
-          select: {
-            id: true,
-            nameAr: true,
-            nameFr: true,
-            geometryType: true,
-            style: true,
-          },
-        },
-      },
-    });
+    const features = await prisma.$queryRawUnsafe(`
+      SELECT
+        f."id",
+        f."layer_id",
+        ST_AsGeoJSON(f."geometry")::jsonb as "geometry",
+        f."attributes",
+        f."created_at" AS "createdAt",
+        f."updated_at" AS "updatedAt",
+        f."created_by" AS "createdBy",
+        l."id" AS "layer_id",
+        l."name_ar" AS "layer_name_ar",
+        l."name_fr" AS "layer_name_fr",
+        l."geometry_type" AS "layer_geometry_type",
+        l."style" AS "layer_style"
+      FROM "features" f
+      JOIN "layers" l ON f."layer_id" = l."id"
+      WHERE f."id" = $1::uuid
+    `, id);
+
+    const feature = features[0];
 
     if (!feature) {
       return res.status(404).json({
@@ -200,10 +194,16 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     res.json({
       feature: {
         id: feature.id,
-        layerId: feature.layerId,
+        layerId: feature.layer_id,
         geometry: feature.geometry,
         attributes: feature.attributes,
-        layer: feature.layer,
+        layer: {
+          id: feature.layer_id,
+          nameAr: feature.layer_name_ar,
+          nameFr: feature.layer_name_fr,
+          geometryType: feature.layer_geometry_type,
+          style: feature.layer_style,
+        },
         createdAt: feature.createdAt,
         updatedAt: feature.updatedAt,
         createdBy: feature.createdBy,
@@ -234,36 +234,41 @@ router.post('/', requireRole('EDITOR', 'ADMIN'), validate(createFeatureSchema), 
     }
 
     // Validate geometry type matches layer geometry type
-    if (geometry.type !== layer.geometry_type) {
+    if (geometry.type !== layer.geometryType) {
       return res.status(400).json({
         error: {
-          message: `Geometry type must match layer geometry type (${layer.geometry_type})`,
+          message: `Geometry type must match layer geometry type (${layer.geometryType})`,
         },
       });
     }
 
-    // Create feature
-    const feature = await prisma.feature.create({
-      data: {
-        layerId,
-        geometry,
-        attributes: attributes || {},
-        createdBy: userId,
-      },
-      select: {
-        id: true,
-        layerId: true,
-        geometry: true,
-        attributes: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: true,
-      },
-    });
+    // Create feature using raw query (convert GeoJSON to GEOMETRY)
+    const feature = await prisma.$queryRawUnsafe(`
+      INSERT INTO "features" ("id", "layer_id", "geometry", "attributes", "created_by")
+      VALUES (
+        gen_random_uuid(),
+        $1::uuid,
+        ST_GeomFromGeoJSON($2::text),
+        $3::jsonb,
+        $4::uuid
+      )
+      RETURNING
+        "id" as "id",
+        "layer_id" as "layerId",
+        ST_AsGeoJSON("geometry")::jsonb as "geometry",
+        "attributes" as "attributes",
+        "created_at" as "createdAt",
+        "updated_at" as "updatedAt",
+        "created_by" as "createdBy"
+    `, layer_id, JSON.stringify(geometry), attributes || {}, userId);
+
+    if (!feature || !(feature as any)[0]) {
+      throw new Error('Failed to create feature');
+    }
 
     res.status(201).json({
       message: 'Feature created successfully',
-      feature,
+      feature: (feature as any)[0],
     });
   } catch (error) {
     next(error);

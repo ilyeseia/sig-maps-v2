@@ -79,7 +79,7 @@ model Layer {
 model Feature {
   id          String   @id @default(uuid())
   layerId     String   @map("layer_id")
-  geometry    Json     // PostGIS geometry as GeoJSON
+  geometry    Unsupported("geometry")  // PostGIS geometry column
   attributes  Json?    // Custom key-value pairs
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

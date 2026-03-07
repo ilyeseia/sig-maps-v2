@@ -8,6 +8,15 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Proxy backend API requests through Next.js
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://backend:3005/api/:path*',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
