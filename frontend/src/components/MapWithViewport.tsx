@@ -11,60 +11,56 @@ interface Feature {
     id: string;
     name_ar: string;
     name_fr: string;
-    geometry_type: string;
+    geometryType: string;
     style: any;
   };
 }
 
 interface FeaturesResponse {
   features: Feature[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  pagination: { page: number; limit: number; total: number; totalPages: number };
   spatialFilter: boolean;
 }
 
 export default function MapWithViewport() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
+  const leafletRef = useRef<any>(null);
+  const tileLayerRef = useRef<any>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const featuresLayerRef = useRef<any>(null);
 
   const loadFeatures = useCallback(async (bbox?: string) => {
     if (loadTimeoutRef.current) {
       clearTimeout(loadTimeoutRef.current);
     }
-
     loadTimeoutRef.current = setTimeout(async () => {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
-      
       try {
         const url = buildFeaturesUrl(
-          process.env.NEXT_PUBLIC_API_URL + '/api/features',
+          process.env.NEXT_PUBLIC_API_URL + '/features',
           bbox,
           1,
           200
         );
-
+        console.log('Fetching features from:', url);
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
         };
-
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
-
         const response = await fetch(url, { headers });
-
+        console.log('API response status:', response.status);
         if (response.ok) {
           const data: FeaturesResponse = await response.json();
+          console.log('API response data:', data);
+          console.log('Setting features:', data.features.length, 'features');
           setFeatures(data.features);
           console.log(`Loaded ${data.features.length} features with spatial filter: ${data.spatialFilter}`);
           setError('');
@@ -88,24 +84,23 @@ export default function MapWithViewport() {
 
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
-
     let isMounted = true;
-    const eventHandlers: Array<() => void> = [];
 
     const loadMap = async () => {
       try {
         const L = await import('leaflet');
-
         if (typeof L === 'undefined') {
           if (isMounted) setError('Failed to load map library');
           return;
         }
 
+        // Store Leaflet reference for later use
+        leafletRef.current = L;
+
         if (mapInstance.current) {
           setIsMapLoaded(true);
           return;
         }
-
         if (!isMounted) return;
 
         const map = L.map(mapRef.current, {
@@ -118,9 +113,12 @@ export default function MapWithViewport() {
           attribution: '© OpenStreetMap',
           maxZoom: 19,
         });
-
         tileLayer.addTo(map);
+        tileLayerRef.current = tileLayer;
         mapInstance.current = map;
+
+        // Create a layer group for features
+        featuresLayerRef.current = L.layerGroup().addTo(map);
 
         const handleMoveEnd = () => {
           if (isMounted && mapInstance.current) {
@@ -128,21 +126,14 @@ export default function MapWithViewport() {
             loadFeatures(bbox);
           }
         };
-
         const handleZoomEnd = () => {
           if (isMounted && mapInstance.current) {
             const bbox = getBboxFromBounds(mapInstance.current.getBounds());
             loadFeatures(bbox);
           }
         };
-
         map.on('moveend', handleMoveEnd);
         map.on('zoomend', handleZoomEnd);
-
-        eventHandlers.push(() => {
-          map.off('moveend', handleMoveEnd);
-          map.off('zoomend', handleZoomEnd);
-        });
 
         if (isMounted) {
           setIsMapLoaded(true);
@@ -153,7 +144,6 @@ export default function MapWithViewport() {
         if (isMounted) setError('Failed to initialize map');
       }
     };
-
     loadMap();
 
     return () => {
@@ -161,30 +151,33 @@ export default function MapWithViewport() {
       if (loadTimeoutRef.current) {
         clearTimeout(loadTimeoutRef.current);
       }
-
       if (mapInstance.current) {
-        eventHandlers.forEach(cleanup => cleanup());
         mapInstance.current.remove();
         mapInstance.current = null;
       }
     };
   }, [loadFeatures]);
 
+    console.log("=== FEATURES DEBUG ===", { hasL: !!leafletRef.current, hasMap: !!mapInstance.current, hasLayer: !!featuresLayerRef.current, count: features.length });
   useEffect(() => {
-    if (!mapInstance.current || features.length === 0) return;
+    const L = leafletRef.current;
+    const map = mapInstance.current;
+    const featuresLayer = featuresLayerRef.current;
 
-    mapInstance.current.eachLayer((layer: any) => {
-      if (layer !== mapInstance.current.getTileLayer) {
-        mapInstance.current.removeLayer(layer);
-      }
-    });
+    console.log("=== RENDER ===", {L:!!L, map:!!map, layer:!!featuresLayer, count:features.length});
+    if (!L || !map || !featuresLayer) { console.log("Missing deps"); return; }
+    if (features.length === 0) { console.log("No features yet"); return; }
+    console.log("Rendering", features.length, "features");
+
+    // Clear previous features
+    featuresLayer.clearLayers();
 
     features.forEach((feature) => {
       const { geometry, layer: featureLayer } = feature;
       const style = featureLayer.style || {};
       let leafletLayer: any;
 
-      switch (featureLayer.geometry_type) {
+      switch (featureLayer.geometryType) {
         case 'POINT':
           leafletLayer = L.marker([geometry.coordinates[1], geometry.coordinates[0]]);
           break;
@@ -224,7 +217,7 @@ export default function MapWithViewport() {
               .join('')}
           </div>
         `);
-        leafletLayer.addTo(mapInstance.current);
+        leafletLayer.addTo(featuresLayer);
       }
     });
   }, [features]);
@@ -256,7 +249,7 @@ export default function MapWithViewport() {
       <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
         <div className="text-sm text-gray-700">
           <p className="font-semibold">SIG Maps V2</p>
-          <p className="text-xs text-gray-500">توقف، بان، ثم تكبير لعرض المزيد</p>
+          <p className="text-xs text-gray-500">تحريك، بان، ثم تكبير لعرض المزيد</p>
         </div>
       </div>
     </div>

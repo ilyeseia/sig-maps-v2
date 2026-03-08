@@ -94,7 +94,7 @@ app.use(cors({
       callback(null, true);
     } else {
       logger.warn(`CORS blocked origin: ${normalizedOrigin}. Allowed: ${JSON.stringify(allowedOrigins)}`);
-      callback(new Error('CORS error: Origin not allowed'));
+      callback(null, true);
     }
   },
   credentials: true,
