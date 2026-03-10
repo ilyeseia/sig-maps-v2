@@ -1,47 +1,100 @@
 # Dependencies
 node_modules/
-*.log
+.npm
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Next.js
+.next/
+out/
+.next-turbo/
+build/
+dist/
+
+# Production
+build/
+.vercel/
+.netlify/
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# Local env files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Database dumps
-*.sql
-*.dump
+# Vercel
+.vercel
 
-# OS files
-.DS_Store
-Thumbs.db
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Build outputs
-dist/
-build/
-.next/
-out/
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Docker volumes
-volumes/
-exports/
+# Logs
+logs/
+*.log
 
-# Tests coverage
-coverage/
-.nyc_output/
-
-# Temporary files
+# Tmp files
+tmp/
+temp/
 *.tmp
+
+# Docker
+*.dockerfile
+.dockerignore
+
+# Exports
+exports/*.geojson
+exports/*.kml
+exports/*.shp
+exports/*.dbf
+exports/*.prj
+exports/*.shx
+exports/*.cpg
+
+# Prisma
+prisma/migrations/dev.*
+
+# Backups
+*.backup
 *.bak
-*.orig
+*.sql.gz
+
+# Secrets (NEVER commit)
+credentials.json
+private-key.pem
+*.p12
+*.pfx
+
+# CI/CD
+.github/workflows/*.local.*

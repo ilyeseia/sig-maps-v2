@@ -1,0 +1,56 @@
+# SIG Maps V2 - Frontend Production Dockerfile (Multi-Stage Build)
+
+# ============================================
+# Stage 1: Dependencies & Build
+# ============================================
+FROM node:20-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache libc6-compat openssl
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies for build)
+RUN npm ci --legacy-peer-deps
+
+# Copy Source Code
+COPY . .
+
+# Build Next.js application
+RUN npm run build
+
+# ============================================
+# Stage 2: Production Runtime
+# ============================================
+FROM node:20-alpine AS runner
+
+# Install runtime dependencies and create user
+RUN apk add --no-cache openssl curl && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 -G nodejs
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV PORT 3000
+
+WORKDIR /app
+
+# Set permissions for app directory (must be AFTER WORKDIR)
+RUN chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Copy required files from builder with --chown flag
+COPY --from=builder --chown=nodejs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nodejs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nodejs:nodejs /app/public ./public
+
+# Expose port
+EXPOSE 3000
+
+# Start Next.js server
+CMD ["node", "server.js"]

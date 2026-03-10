@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIG Maps - Debug</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; direction: rtl; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    .test-status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+    .pass { background: #d4edda; border: 1px solid #c3e6cb; }
+    .fail { background: #f8d7da; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+  <h1>🔍 SIG Maps V2 - صفحة تشخيص</h1>
+  <pre id="status">جاري التشغيل...</pre>
+
+  <hr>
+  <h2>🧪 الاختبارات:</h2>
+  <div id="tests"></div>
+
+  <hr>
+  <h2>🔑 خطوة 1: تسجيل الدخول</h2>
+  <form id="loginForm">
+    <input type="email" id="email" value="admin@sigmaps.com" placeholder="البريد الإلكتروني" style="width: 300px; padding: 10px; margin: 5px;">
+    <input type="password" id="password" value="Admin12345" placeholder="كلمة المرور" style="width: 300px; padding: 10px; margin: 5px;">
+    <button type="submit" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; cursor: pointer;">تسجيل الدخول</button>
+  </form>
+
+  <hr>
+  <h2>🗺️ خطوة 2: طبقة الخريطة</h2>
+  <div id="map" style="height: 400px; width: 100%; background: #e5e7eb; border-radius: 5px;"></div>
+
+  <hr>
+  <h2>📊 خطوة 3: Features</h2>
+  <button onclick="loadFeatures()" style="padding: 10px 20px; background: #10b981; color: white; border: none; cursor: pointer;">جلب البيانات</button>
+  <pre id="featuresOutput">اضغط الزر لجلب البيانات...</pre>
+
+  <script>
+    const status = document.getElementById('status');
+    const tests = document.getElementById('tests');
+
+    let token = null;
+
+    function log(message) {
+      status.textContent += '\n' + message;
+    }
+
+    function test(name, passed, details) {
+      const div = document.createElement('div');
+      div.className = 'test-status ' + (passed ? 'pass' : 'fail');
+      div.innerHTML = `<strong>${passed ? '✅' : '❌'} ${name}</strong><br>${details || ''}`;
+      tests.appendChild(div);
+    }
+
+    // Test 1: localStorage
+    const localStorageWorks = (() => {
+      try {
+        localStorage.setItem('test', 'test');
+        localStorage.removeItem('test');
+        return true;
+      } catch(e) { return false; }
+    })();
+    test('localStorage', localStorageWorks, localStorageWorks ? 'يعمل بشكل صحيح' : 'لا يعمل - مشكلة في المتصفح');
+
+    // Test 2: Fetch API
+    test('Fetch API', typeof fetch === 'function', 'Fetch API مدعوم');
+
+    // Test 3: Backend API
+    fetch('/api/health', {
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.text())
+    .then(text => {
+      test('API Health Check', text.includes('healthy'), `Response: ${text.substring(0, 100)}`);
+    })
+    .catch(err => {
+      test('API Health Check', false, `Error: ${err.message}`);
+    });
+
+    // Test 4: JWT Storage (check if token exists)
+    setTimeout(() => {
+      token = localStorage.getItem('accessToken');
+      test('JWT Token موجود', !!token, token ? `Token: ${token.slice(0, 50)}...` : 'لا يوجد token - يجب تسجيل الدخول');
+    }, 100);
+
+    // Test 5: Leaflet Loading
+    import('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+    .then(L => {
+      test('Leaflet Loading', !!L, 'Leaflet library محملة بنجاح');
+
+      // Initialize map
+      const map = L.map('map').setView([36.7538, 3.0588], 12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+      test('Leaflet Map Init', true, 'تم تهيئة الخريطة بنجاح');
+    })
+    .catch(err => {
+      test('Leaflet Loading', false, `Error: ${err.message}`);
+    });
+
+    // Login Handler
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.accessToken) {
+          token = data.accessToken;
+          localStorage.setItem('accessToken', token);
+          localStorage.setItem('refreshToken', data.refreshToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
+
+          test('تسجيل الدخول', true, `تم تسجيل الدخول كـ ${data.user.name} (${data.user.role})`);
+          log(`تم حفظ token في localStorage: ${token.slice(0, 50)}...`);
+        } else {
+          test('تسجيل الدخول', false, data.error?.message || 'فشل تسجيل الدخول');
+        }
+      } catch(err) {
+        test('تسجيل الدخول', false, `Error: ${err.message}`);
+      }
+    });
+
+    // Load Features
+    window.loadFeatures = async function() {
+      const token = localStorage.getItem('accessToken');
+      const output = document.getElementById('featuresOutput');
+
+      if (!token) {
+        output.textContent = '❌ يجب تسجيل الدخول أولاً';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/features?limit=10', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+        const features = data.features || [];
+
+        test('API Features Fetch', response.ok, `عدد الـ features: ${features.length}`);
+
+        if (features.length > 0) {
+          output.textContent = JSON.stringify(features[0], null, 2);
+        } else {
+          output.textContent = 'لا يوجد features محفوظة';
+        }
+      } catch(err) {
+        output.textContent = `Error: ${err.message}`;
+        test('API Features Fetch', false, err.message);
+      }
+    };
+  </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ const createLayerSchema = z.object({
   name_fr: z.string().min(1, 'French name is required'),
   geometry_type: z.enum(['POINT', 'LINE', 'POLYGON']),
   is_visible: z.boolean().default(true),
-  z_index: z.number().int().default(0),
+  zIndex: z.number().int().default(0),
   style: z.object({
     color: z.string().default('#3B82F6'),
     opacity: z.number().min(0).max(1).default(0.7),
@@ -33,7 +33,7 @@ const updateLayerSchema = z.object({
   name_fr: z.string().min(1).optional(),
   geometry_type: z.enum(['POINT', 'LINE', 'POLYGON']).optional(),
   is_visible: z.boolean().optional(),
-  z_index: z.number().int().optional(),
+  zIndex: z.number().int().optional(),
   style: z.object({
     color: z.string().optional(),
     opacity: z.number().min(0).max(1).optional(),
@@ -57,18 +57,17 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     // Cache miss - fetch from database
     const layers = await prisma.layer.findMany({
       orderBy: [
-        { z_index: 'asc' },
+        { zIndex: 'asc' },
         { createdAt: 'desc' },
       ],
       select: {
         id: true,
-        name_ar: true,
-        name_fr: true,
-        geometry_type: true,
-        is_visible: true,
-        z_index: true,
+        nameAr: true,
+        nameFr: true,
+        geometryType: true,
+        isVisible: true,
+        zIndex: true,
         style: true,
-        created_at: true,
         createdAt: true,
         _count: {
           select: { features: true },
@@ -79,11 +78,11 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const response = {
       layers: layers.map((layer) => ({
         id: layer.id,
-        name_ar: layer.name_ar,
-        name_fr: layer.name_fr,
-        geometry_type: layer.geometry_type,
-        is_visible: layer.is_visible,
-        z_index: layer.z_index,
+        name_ar: layer.nameAr,
+        name_fr: layer.nameFr,
+        geometry_type: layer.geometryType,
+        is_visible: layer.isVisible,
+        zIndex: layer.zIndex,
         style: layer.style,
         created_at: layer.createdAt,
         feature_count: layer._count.features,
@@ -108,15 +107,14 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
       where: { id },
       select: {
         id: true,
-        name_ar: true,
-        name_fr: true,
-        geometry_type: true,
-        is_visible: true,
-        z_index: true,
+        nameAr: true,
+        nameFr: true,
+        geometryType: true,
+        isVisible: true,
+        zIndex: true,
         style: true,
-        created_at: true,
         createdAt: true,
-        created_by: true,
+        createdBy: true,
         _count: {
           select: { features: true },
         },
@@ -134,14 +132,14 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
     res.json({
       layer: {
         id: layer.id,
-        name_ar: layer.name_ar,
-        name_fr: layer.name_fr,
-        geometry_type: layer.geometry_type,
-        is_visible: layer.is_visible,
-        z_index: layer.z_index,
+        name_ar: layer.nameAr,
+        name_fr: layer.nameFr,
+        geometry_type: layer.geometryType,
+        is_visible: layer.isVisible,
+        zIndex: layer.zIndex,
         style: layer.style,
         created_at: layer.createdAt,
-        created_by: layer.created_by,
+        created_by: layer.createdBy,
         feature_count: layer._count.features,
       },
     });
@@ -153,29 +151,29 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 // POST /api/layers - Create layer (editor/admin only)
 router.post('/', requireRole('EDITOR', 'ADMIN'), validate(createLayerSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { name_ar, name_fr, geometry_type, is_visible, z_index, style } = req.body;
+    const { name_ar, name_fr, geometry_type, is_visible, zIndex, style } = req.body;
     const userId = req.user!.id;
 
     const layer = await prisma.layer.create({
       data: {
-        name_ar,
-        name_fr,
-        geometry_type,
-        is_visible: is_visible ?? true,
-        z_index: z_index ?? 0,
+        nameAr: name_ar,
+        nameFr: name_fr,
+        geometryType: geometry_type,
+        isVisible: is_visible ?? true,
+        zIndex: zIndex ?? 0,
         style: style ?? {},
-        created_by: userId,
+        createdBy: userId,
       },
       select: {
         id: true,
-        name_ar: true,
-        name_fr: true,
-        geometry_type: true,
-        is_visible: true,
-        z_index: true,
+        nameAr: true,
+        nameFr: true,
+        geometryType: true,
+        isVisible: true,
+        zIndex: true,
         style: true,
-        created_at: true,
-        created_by: true,
+        createdAt: true,
+        createdBy: true,
       },
     });
 
@@ -195,7 +193,7 @@ router.post('/', requireRole('EDITOR', 'ADMIN'), validate(createLayerSchema), as
 router.put('/:id', requireRole('EDITOR', 'ADMIN'), validate(updateLayerSchema), async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { name_ar, name_fr, geometry_type, is_visible, z_index, style } = req.body;
+    const { name_ar, name_fr, geometry_type, is_visible, zIndex, style } = req.body;
     const userId = req.user!.id;
 
     // Check if layer exists
@@ -215,23 +213,23 @@ router.put('/:id', requireRole('EDITOR', 'ADMIN'), validate(updateLayerSchema), 
     const layer = await prisma.layer.update({
       where: { id },
       data: {
-        ...(name_ar && { name_ar }),
-        ...(name_fr && { name_fr }),
-        ...(geometry_type && { geometry_type }),
-        ...(is_visible !== undefined && { is_visible }),
-        ...(z_index !== undefined && { z_index }),
+        ...(name_ar && { nameAr: name_ar }),
+        ...(name_fr && { nameFr: name_fr }),
+        ...(geometry_type && { geometryType: geometry_type }),
+        ...(is_visible !== undefined && { isVisible: is_visible }),
+        ...(zIndex !== undefined && { zIndex }),
         ...(style !== undefined && { style }),
       },
       select: {
         id: true,
-        name_ar: true,
-        name_fr: true,
-        geometry_type: true,
-        is_visible: true,
-        z_index: true,
+        nameAr: true,
+        nameFr: true,
+        geometryType: true,
+        isVisible: true,
+        zIndex: true,
         style: true,
-        created_at: true,
-        created_by: true,
+        createdAt: true,
+        createdBy: true,
       },
     });
 
@@ -257,7 +255,7 @@ router.patch('/:id/visibility', requireRole('EDITOR', 'ADMIN'), async (req: Auth
     // Check if layer exists and get current visibility
     const existingLayer = await prisma.layer.findUnique({
       where: { id },
-      select: { is_visible: true },
+      select: { isVisible: true },
     });
 
     if (!existingLayer) {
@@ -269,10 +267,10 @@ router.patch('/:id/visibility', requireRole('EDITOR', 'ADMIN'), async (req: Auth
     }
 
     // Toggle visibility
-    const newVisibility = is_visible !== undefined ? is_visible : !existingLayer.is_visible;
+    const newVisibility = is_visible !== undefined ? is_visible : !existingLayer.isVisible;
     const layer = await prisma.layer.update({
       where: { id },
-      data: { is_visible: newVisibility },
+      data: { isVisible: newVisibility },
     });
 
     // Invalidate cache
@@ -283,7 +281,7 @@ router.patch('/:id/visibility', requireRole('EDITOR', 'ADMIN'), async (req: Auth
       message: 'Layer visibility updated successfully',
       layer: {
         id: layer.id,
-        is_visible: layer.is_visible,
+        is_visible: layer.isVisible,
       },
     });
   } catch (error) {

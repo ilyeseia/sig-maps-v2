@@ -22,7 +22,7 @@ RUN npx prisma generate
 # Production will run with tsx (TypeScript runtime executor)
 
 # Expose port
-EXPOSE 3002
+EXPOSE 3005
 
 # Start server with tsx (production mode without watch)
 CMD ["npm", "run", "prod"]

@@ -77,7 +77,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         `;
 
         const [featuresResult, countResult] = await Promise.all([
-          prisma.$queryRawUnsafe(featuresQuery),
+          prisma.$queryRawUnsafe(featuresQuery) as unknown as any[],
           prisma.$queryRawUnsafe(countQuery),
         ]);
 
@@ -116,7 +116,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       `;
 
       const [featuresResult, countResult] = await Promise.all([
-        prisma.$queryRawUnsafe(featuresQuery),
+        prisma.$queryRawUnsafe(featuresQuery) as unknown as any[],
         prisma.$queryRawUnsafe(countQuery),
       ]);
 
@@ -179,7 +179,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       FROM "features" f
       JOIN "layers" l ON f."layer_id" = l."id"
       WHERE f."id" = $1::uuid
-    `, id);
+    `, id) as any[];
 
     const feature = features[0];
 
@@ -282,9 +282,13 @@ router.put('/:id', requireRole('EDITOR', 'ADMIN'), validate(updateFeatureSchema)
     const { geometry, attributes } = req.body;
 
     // Check if feature exists
-    const existingFeature = await prisma.feature.findUnique({
-      where: { id },
-    });
+    const existingFeatures = await prisma.$queryRawUnsafe(`
+      SELECT id, layer_id, created_by
+      FROM "features"
+      WHERE id = $1::uuid
+    `, id) as unknown as any[];
+
+    const existingFeature = existingFeatures[0] as any;
 
     if (!existingFeature) {
       return res.status(404).json({
@@ -294,27 +298,57 @@ router.put('/:id', requireRole('EDITOR', 'ADMIN'), validate(updateFeatureSchema)
       });
     }
 
-    // Update feature
-    const feature = await prisma.feature.update({
-      where: { id },
-      data: {
-        ...(geometry !== undefined && { geometry }),
-        ...(attributes !== undefined && { attributes }),
-      },
-      select: {
-        id: true,
-        layerId: true,
-        geometry: true,
-        attributes: true,
-        createdAt: true,
-        updatedAt: true,
-        createdBy: true,
-      },
-    });
+    // Update feature using raw query (Prisma doesn't support GEOMETRY type)
+    let updateQuery = '';
+    const updateValues: any[] = [];
+
+    if (geometry !== undefined && attributes !== undefined) {
+      updateQuery = `
+        UPDATE "features"
+        SET geometry = ST_GeomFromGeoJSON($1::text),
+            attributes = $2::jsonb,
+            updated_at = NOW()
+        WHERE id = $3::uuid
+        RETURNING id, layer_id, ST_AsGeoJSON(geometry)::jsonb as geometry, attributes, created_at, updated_at, created_by
+      `;
+      updateValues.push(JSON.stringify(geometry), attributes, id);
+    } else if (geometry !== undefined) {
+      updateQuery = `
+        UPDATE "features"
+        SET geometry = ST_GeomFromGeoJSON($1::text),
+            updated_at = NOW()
+        WHERE id = $2::uuid
+        RETURNING id, layer_id, ST_AsGeoJSON(geometry)::jsonb as geometry, attributes, created_at, updated_at, created_by
+      `;
+      updateValues.push(JSON.stringify(geometry), id);
+    } else if (attributes !== undefined) {
+      updateQuery = `
+        UPDATE "features"
+        SET attributes = $1::jsonb,
+            updated_at = NOW()
+        WHERE id = $2::uuid
+        RETURNING id, layer_id, ST_AsGeoJSON(geometry)::jsonb as geometry, attributes, created_at, updated_at, created_by
+      `;
+      updateValues.push(attributes, id);
+    }
+
+    const features = await prisma.$queryRawUnsafe(updateQuery, ...updateValues) as unknown as any[];
+    const feature = features[0] as any;
+
+    // Transform result
+    const transformedFeature = {
+      id: feature.id,
+      layerId: feature.layer_id,
+      geometry: feature.geometry,
+      attributes: feature.attributes,
+      createdAt: feature.created_at,
+      updatedAt: feature.updated_at,
+      createdBy: feature.created_by,
+    };
 
     res.json({
       message: 'Feature updated successfully',
-      feature,
+      feature: transformedFeature,
     });
   } catch (error) {
     next(error);
@@ -327,11 +361,11 @@ router.delete('/:id', requireRole('EDITOR', 'ADMIN'), async (req: AuthRequest, r
     const { id } = req.params;
 
     // Check if feature exists
-    const existingFeature = await prisma.feature.findUnique({
-      where: { id },
-    });
+    const existingFeatures = await prisma.$queryRawUnsafe(`
+      SELECT id FROM "features" WHERE id = $1::uuid
+    `, id) as any[];
 
-    if (!existingFeature) {
+    if (!existingFeatures || existingFeatures.length === 0) {
       return res.status(404).json({
         error: {
           message: 'Feature not found',
@@ -340,9 +374,9 @@ router.delete('/:id', requireRole('EDITOR', 'ADMIN'), async (req: AuthRequest, r
     }
 
     // Delete feature
-    await prisma.feature.delete({
-      where: { id },
-    });
+    await prisma.$queryRawUnsafe(`
+      DELETE FROM "features" WHERE id = $1::uuid
+    `, id);
 
     res.json({
       message: 'Feature deleted successfully',

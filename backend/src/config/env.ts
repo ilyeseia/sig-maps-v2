@@ -5,7 +5,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   // Server
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().transform(Number).default('3002'),
+  PORT: z.string().transform(Number).default('3005'),
 
   // Database
   DATABASE_URL: z.string().url(),
@@ -51,7 +51,7 @@ export const env = validatedEnv.success
   ? validatedEnv.data
   : {
       NODE_ENV: 'development',
-      PORT: 3002,
+      PORT: 3005,
       DATABASE_URL: '',
       REDIS_URL: 'redis://redis:6379',
       JWT_SECRET: '',

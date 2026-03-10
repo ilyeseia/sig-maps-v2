@@ -42,12 +42,10 @@ export default function MapWithViewport() {
       setLoading(true);
       const token = localStorage.getItem('accessToken');
       try {
-        const url = buildFeaturesUrl(
-          process.env.NEXT_PUBLIC_API_URL + '/features',
-          bbox,
-          1,
-          200
-        );
+        const apiUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}${process.env.NEXT_PUBLIC_API_URL}/features`
+        : `${process.env.NEXT_PUBLIC_API_URL}/features`;
+      const url = buildFeaturesUrl(apiUrl, bbox, 1, 200);
         console.log('Fetching features from:', url);
         const headers: HeadersInit = {
           'Content-Type': 'application/json',

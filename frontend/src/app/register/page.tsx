@@ -62,7 +62,9 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('https://sig-backend.tail7d68dd.ts.net/api/auth/register', {
+      // Use environment variable for API URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

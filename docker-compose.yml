@@ -7,31 +7,43 @@ services:
     container_name: sig-maps-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: grocery_admin
-      POSTGRES_PASSWORD: GroceryStrongPassword2024!
-      POSTGRES_DB: sig_maps_v2
-    ports:
-      - 5435:5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    command: >
+      postgres -c max_connections=100
+               -c shared_buffers=256MB
+               -c effective_cache_size=1GB
+               -c work_mem=4MB
+               -c maintenance_work_mem=64MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U grocery_admin"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - sig-maps-network
 
   # Redis for BullMQ (Export Jobs)
   redis:
     image: redis:7-alpine
     container_name: sig-maps-redis
     restart: unless-stopped
-    ports:
-      - 6381:6379
+    command: >
+      redis-server --maxmemory 256mb
+                   --maxmemory-policy allkeys-lru
+                   --timeout 300
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - sig-maps-network
 
   # Backend API
   backend:
@@ -40,19 +52,13 @@ services:
       dockerfile: Dockerfile
     container_name: sig-maps-backend-v2
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
-      DATABASE_URL: postgresql://grocery_admin:GroceryStrongPassword2024!@postgres:5432/sig_maps_v2?schema=public
-      JWT_SECRET: your-secret-key-change-this-in-production-min-32-characters
-      JWT_ACCESS_EXPIRY: 24h
-      JWT_REFRESH_EXPIRY: 7d
+      NODE_ENV: production
       PORT: 3005
-      NODE_ENV: development
-      FRONTEND_URL: https://sig-frontend.tail7d68dd.ts.net
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      BCRYPT_COST: 12
     ports:
-      - "3005:3005"
+      - 3005:3005
     labels:
       tsdproxy.enable: "true"
       tsdproxy.name: "sig-backend"
@@ -64,11 +70,22 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - ./backend:/app
-      - /app/node_modules
       - exports_volume:/exports
       - prisma_migrations:/app/prisma/migrations
-    command: sh -c "npm install --legacy-peer-deps && npx prisma generate && npx prisma migrate deploy && npm run dev"
+    command: >
+      sh -c "npm ci --legacy-peer-deps &&
+             npx prisma generate &&
+             npx prisma migrate deploy &&
+             npm run build &&
+             npm start"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sig-maps-network
 
   # Frontend (Next.js)
   frontend:
@@ -77,10 +94,10 @@ services:
       dockerfile: Dockerfile
     container_name: sig-maps-frontend-v2
     restart: unless-stopped
+    env_file:
+      - .env.production
     environment:
-      # Proxy through Next.js rewrites
-      NEXT_PUBLIC_API_URL: "/api"
-      NEXT_PUBLIC_MAP_TILE_URL: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+      NODE_ENV: production
     ports:
       - 3003:3000
     labels:
@@ -90,13 +107,50 @@ services:
       tsdproxy.funnel: "true"
     depends_on:
       - backend
+    command: >
+      sh -c "npm ci --legacy-peer-deps &&
+             npm run build &&
+             npm start"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - sig-maps-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: sig-maps-nginx
+    restart: unless-stopped
+    ports:
+      - 8080:80
+    labels:
+      tsdproxy.enable: "true"
+      tsdproxy.name: "sig-maps"
+      tsdproxy.container_port: "8080"
+      tsdproxy.funnel: "true"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    command: sh -c "npm install --legacy-peer-deps && npm run dev"
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - sig-maps-network
 
 volumes:
   postgres_data:
   exports_volume:
   prisma_migrations:
+  redis_data:
+
+networks:
+  sig-maps-network:
+    driver: bridge
