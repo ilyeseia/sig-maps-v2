@@ -95,6 +95,9 @@ credentials.json
 private-key.pem
 *.p12
 *.pfx
+# Production secrets
+.env.production
+secrets/
 
 # CI/CD
 .github/workflows/*.local.*

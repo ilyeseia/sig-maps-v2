@@ -122,7 +122,7 @@ echo -e "${YELLOW}Step 3: Setting up Docker volumes and network...${NC}"
 echo ""
 
 # Create volumes and network
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 docker network prune -f
 
 echo -e "${GREEN}✓ Docker environment ready${NC}"
@@ -132,7 +132,7 @@ echo -e "${YELLOW}Step 4: Building images (this may take 10-15 minutes)...${NC}"
 echo ""
 
 # Build all services
-docker-compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml build
 
 echo -e "${GREEN}✓ Images built successfully${NC}"
 echo ""
@@ -141,11 +141,11 @@ echo -e "${YELLOW}Step 5: Running migrations...${NC}"
 echo ""
 
 # Run migrations
-docker-compose -f docker-compose.prod.yml up -d postgres redis
+docker compose -f docker-compose.prod.yml up -d postgres redis
 sleep 10
 
-# Run Prisma migrations
-docker-compose -f docker-compose.prod.yml run --rm backend npx prisma migrate deploy
+# Run Prisma migrations (use Prisma 5.x to match Docker build)
+docker compose -f docker-compose.prod.yml run --rm backend npx prisma@5.22.0 migrate deploy
 
 echo -e "${GREEN}✓ Migrations completed${NC}"
 echo ""
@@ -154,7 +154,7 @@ echo -e "${YELLOW}Step 6: Starting all services...${NC}"
 echo ""
 
 # Start all services
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Wait for services to be ready
 echo "Waiting for services to start..."
@@ -166,8 +166,8 @@ echo -e "${YELLOW}Checking service health:${NC}"
 
 services=("postgres" "redis" "backend" "frontend" "nginx")
 for service in "${services[@]}"; do
-    health=$(docker-compose -f docker-compose.prod.yml ps $service --format json | jq -r '.[0].Health' 2>/dev/null || echo "unknown")
-    status=$(docker-compose -f docker-compose.prod.yml ps $service --format json | jq -r '.[0].State' 2>/dev/null || echo "unknown")
+    health=$(docker compose -f docker-compose.prod.yml ps $service --format json | jq -r '.[0].Health' 2>/dev/null || echo "unknown")
+    status=$(docker compose -f docker-compose.prod.yml ps $service --format json | jq -r '.[0].State' 2>/dev/null || echo "unknown")
     echo -e "  $service: ${GREEN}$status${NC} (health: $health)"
 done
 
