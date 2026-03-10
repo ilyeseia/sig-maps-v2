@@ -220,36 +220,42 @@ export default function MapWithViewport() {
     });
   }, [features]);
 
-  if (!isMapLoaded) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <p className="text-gray-700 font-medium">جاري تحميل الخريطة...</p>
-        {error && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-4 max-w-md">
-            <p className="text-red-700 text-sm">{error}</p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="relative h-full w-full">
+      {/* Map container - always rendered so mapRef is available */}
       <div ref={mapRef} className="h-full w-full" />
-      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
-        <div className="text-sm text-gray-700">
-          <p className="font-semibold">الحالة</p>
-          <p className="mt-1">{loading ? 'جاري التحميل...' : `الميزات: ${features.length}`}</p>
-          {error && <p className="text-red-600 mt-1 text-xs">{error}</p>}
+
+      {/* Loading overlay - shown on top of map until initialization completes */}
+      {!isMapLoaded && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 z-[2000]">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
+          <p className="text-gray-700 font-medium">جاري تحميل الخريطة...</p>
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-4 max-w-md">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
         </div>
-      </div>
-      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
-        <div className="text-sm text-gray-700">
-          <p className="font-semibold">SIG Maps V2</p>
-          <p className="text-xs text-gray-500">تحريك، بان، ثم تكبير لعرض المزيد</p>
-        </div>
-      </div>
+      )}
+
+      {/* Status panel */}
+      {isMapLoaded && (
+        <>
+          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
+            <div className="text-sm text-gray-700">
+              <p className="font-semibold">الحالة</p>
+              <p className="mt-1">{loading ? 'جاري التحميل...' : `الميزات: ${features.length}`}</p>
+              {error && <p className="text-red-600 mt-1 text-xs">{error}</p>}
+            </div>
+          </div>
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
+            <div className="text-sm text-gray-700">
+              <p className="font-semibold">SIG Maps V2</p>
+              <p className="text-xs text-gray-500">تحريك، بان، ثم تكبير لعرض المزيد</p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
