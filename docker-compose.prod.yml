@@ -132,7 +132,7 @@ services:
     labels:
       tsdproxy.enable: "true"
       tsdproxy.name: "sig-frontend-prod"
-      tsdproxy.container_port: "3003"
+      tsdproxy.container_port: "3000"
       tsdproxy.funnel: "true"
     depends_on:
       backend:
@@ -169,7 +169,7 @@ services:
     labels:
       tsdproxy.enable: "true"
       tsdproxy.name: "sig-maps"
-      tsdproxy.container_port: "8080"
+      tsdproxy.container_port: "80"
       tsdproxy.funnel: "true"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
