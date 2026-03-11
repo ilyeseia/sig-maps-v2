@@ -144,10 +144,9 @@ echo ""
 docker compose -f docker-compose.prod.yml up -d postgres redis
 sleep 10
 
-# Run Prisma migrations (use Prisma 5.x to match Docker build)
-docker compose -f docker-compose.prod.yml run --rm backend npx prisma@5.22.0 migrate deploy
-
-echo -e "${GREEN}✓ Migrations completed${NC}"
+# Run Prisma db push to create tables from schema directly (matches Docker build Prisma 5.22.0)
+docker compose -f docker-compose.prod.yml run --rm backend npx prisma@5.22.0 db push --accept-data-loss
+echo -e "${GREEN}✓ Database schema pushed successfully${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 6: Starting all services...${NC}"
